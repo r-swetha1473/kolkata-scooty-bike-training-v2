@@ -5,19 +5,21 @@ require('dotenv').config();
 let pool;
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
+// Vercel serverless: keep pools tiny to avoid exhausting Supabase connection limits.
+const defaultPoolMax = process.env.VERCEL ? '1' : '10';
+const poolMax = parseInt(process.env.DB_POOL_MAX || defaultPoolMax, 10);
 
 if (process.env.DATABASE_URL) {
-  // Use connection string if available (Neon PostgreSQL uses DATABASE_URL)
-  // Neon requires SSL connections, so we enable SSL for production
+  // Use connection string if available (Supabase / Neon / managed Postgres)
+  // Cloud Postgres typically requires SSL in production
   const sslConfig = process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false } // Required for Neon and most cloud PostgreSQL
+    ? { rejectUnauthorized: false } // Required for most cloud PostgreSQL (incl. Supabase)
     : (process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false);
   
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: sslConfig,
-    // Connection pool settings for production
-    max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+    max: poolMax,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
   });
@@ -35,8 +37,7 @@ if (process.env.DATABASE_URL) {
     ssl: process.env.NODE_ENV === 'production' 
       ? { rejectUnauthorized: false } 
       : (process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false),
-    // Connection pool settings
-    max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+    max: poolMax,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
   };
@@ -56,7 +57,10 @@ if (process.env.DATABASE_URL) {
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle PostgreSQL client', err);
-  process.exit(-1);
+  // Do not kill the Vercel serverless isolate on idle client errors
+  if (!process.env.VERCEL) {
+    process.exit(-1);
+  }
 });
 
 module.exports = {

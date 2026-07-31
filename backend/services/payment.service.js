@@ -1,17 +1,22 @@
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const db = require('../db');
 const auditService = require('./audit.service');
 const { logActivity } = require('./activity.service');
 const { EVENT_TYPES, logBookingEvent } = require('./bookingEvent.service');
 
+// Vercel / serverless: only /tmp (or os.tmpdir) is writable.
 const UPLOAD_ROOT = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
-  : path.join(__dirname, '..', 'uploads');
+  : process.env.VERCEL
+    ? path.join(os.tmpdir(), 'kolkata-bike-training-uploads')
+    : path.join(__dirname, '..', 'uploads');
 const RECEIPT_DIR = path.join(UPLOAD_ROOT, 'receipts');
 
 function ensureReceiptDir() {
   fs.mkdirSync(RECEIPT_DIR, { recursive: true });
+  fs.mkdirSync(path.join(RECEIPT_DIR, '_tmp'), { recursive: true });
   return RECEIPT_DIR;
 }
 

@@ -64,7 +64,6 @@ const offlinePaymentUpload = multer({
     cb(new Error('Only JPEG, PNG, WebP, or PDF payment proofs are allowed'));
   }
 });
-fs.mkdirSync(path.join(paymentService.RECEIPT_DIR, '_tmp'), { recursive: true });
 const { enrichUsersWithDisplayPhone } = require('../utils/userPhone');
 const { runOverdueBookingDetection } = require('../services/overdueDetection.service');
 const { getClientIp } = require('../utils/authCookie');

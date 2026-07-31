@@ -24,8 +24,6 @@ const upload = multer({
   }
 });
 
-fs.mkdirSync(path.join(paymentService.RECEIPT_DIR, '_tmp'), { recursive: true });
-
 function handleValidation(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

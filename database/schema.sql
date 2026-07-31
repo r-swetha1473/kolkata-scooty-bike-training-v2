@@ -4292,15 +4292,13 @@ SET session_replication_role = replica;
 -- PostgreSQL database dump
 --
 
-\restrict aabdwVfVdBTa90qaG57eHIRAtmbfVZbGksSaG4OIydMYscgcRCAHgzMbEO7DSzv
-
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
+-- SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -4398,9 +4396,6 @@ INSERT INTO public.vehicles (id, name, type, description, is_active, created_at,
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict aabdwVfVdBTa90qaG57eHIRAtmbfVZbGksSaG4OIydMYscgcRCAHgzMbEO7DSzv
-
 
 SET session_replication_role = DEFAULT;
 UPDATE public.settings SET updated_by = NULL WHERE updated_by IS NOT NULL;

@@ -42,3 +42,5 @@ backend/uploads/
 *.tsbuildinfo
 *.swp
 *~
+.vercel
+.env*

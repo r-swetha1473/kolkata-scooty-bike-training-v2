@@ -10,6 +10,7 @@ Production booking platform for scooty and bike training in Kolkata: multi-branc
 | [DATABASE.md](DATABASE.md) | Single-schema database setup |
 | [API.md](API.md) | Backend API overview |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Production deploy |
+| [VERCEL_DEPLOY.md](VERCEL_DEPLOY.md) | Vercel + Supabase two-project deploy |
 | [CHANGELOG.md](CHANGELOG.md) | Notable changes |
 
 ## Quick start

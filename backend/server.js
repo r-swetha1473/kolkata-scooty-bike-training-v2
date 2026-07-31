@@ -85,8 +85,11 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // Optionally allow any Vercel deployment of this app
-    if (normalizedOrigin.endsWith('kolkata-scooty-bike-training.vercel.app')) {
+    // Allow Vercel production + preview hosts for this product family
+    if (
+      normalizedOrigin.endsWith('kolkata-scooty-bike-training.vercel.app') ||
+      normalizedOrigin.endsWith('kolkata-scooty-bike-training-v2.vercel.app')
+    ) {
       return callback(null, true);
     }
 
@@ -109,8 +112,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
+    // Cross-site FE (Vercel) → API (Vercel) needs SameSite=None + Secure for OAuth session
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -289,152 +294,159 @@ app.use('/api', (req, res) => {
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0'; // Bind to 0.0.0.0 for Docker compatibility
+// Export Express app for Vercel Serverless (`api/index.js`).
+// Local / Docker / PM2 continue to listen below when not on Vercel.
+module.exports = app;
 
-// Start server
-const server = app.listen(PORT, HOST, () => {
-  try {
-    const cloudinaryService = require('./services/cloudinary.service');
-    cloudinaryService.assertCloudinaryConfigured();
-  } catch (err) {
-    console.error('[cloudinary] startup config error:', err.message);
-    if (process.env.NODE_ENV === 'production' || process.env.REQUIRE_CLOUDINARY === '1') {
-      console.error('[cloudinary] refusing to start without Cloudinary config');
-      process.exit(1);
-    } else {
-      console.warn('[cloudinary] continuing in development — image uploads will fail until env is set');
+const isVercel = Boolean(process.env.VERCEL);
+
+/**
+ * INCOMPATIBLE ON VERCEL (documented — not rewritten here):
+ * - node-cron + startup jobs (no long-lived process)
+ * - SSE /api/events (no reliable long-lived connections)
+ * - Local-disk payment receipts (ephemeral filesystem)
+ * Those keep working on non-Vercel hosts (PM2 / Docker / Render).
+ */
+if (!isVercel) {
+  const PORT = process.env.PORT || 3000;
+  const HOST = process.env.HOST || '0.0.0.0';
+
+  const server = app.listen(PORT, HOST, () => {
+    try {
+      const cloudinaryService = require('./services/cloudinary.service');
+      cloudinaryService.assertCloudinaryConfigured();
+    } catch (err) {
+      console.error('[cloudinary] startup config error:', err.message);
+      if (process.env.NODE_ENV === 'production' || process.env.REQUIRE_CLOUDINARY === '1') {
+        console.error('[cloudinary] refusing to start without Cloudinary config');
+        process.exit(1);
+      } else {
+        console.warn('[cloudinary] continuing in development — image uploads will fail until env is set');
+      }
     }
-  }
-  console.log(`Server running on ${HOST}:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-// Daily inactivity check (customers with no booking for N days → inactive_blocked)
-if (process.env.DISABLE_INACTIVITY_CRON !== '1') {
-  const cronExpr = process.env.INACTIVITY_CRON || '0 2 * * *';
-  cron.schedule(cronExpr, () => {
-    runInactivityBlockCheck()
-      .then((result) => cronStatus.recordRun('inactivity_block', { success: true, meta: result || {} }))
-      .catch((err) => {
-        console.error('[Inactivity cron]', err.message);
-        cronStatus.recordRun('inactivity_block', { success: false, error: err.message });
-      });
+    console.log(`Server running on ${HOST}:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
-}
 
-/** Auto-generate training slots for 7 days starting today (server date) at cron time (default midnight Asia/Kolkata) */
-if (process.env.DISABLE_AUTO_SLOT_CRON !== '1') {
-  const autoSlotCron = process.env.AUTO_SLOT_CRON || '0 0 * * *';
-  const autoSlotTz = process.env.AUTO_SLOT_CRON_TZ || 'Asia/Kolkata';
-  cron.schedule(
-    autoSlotCron,
-    () => {
-      runNightlyAutoGeneration()
-        .then((result) => cronStatus.recordRun('auto_slot_generation', { success: true, meta: result || {} }))
+  // Daily inactivity check (customers with no booking for N days → inactive_blocked)
+  if (process.env.DISABLE_INACTIVITY_CRON !== '1') {
+    const cronExpr = process.env.INACTIVITY_CRON || '0 2 * * *';
+    cron.schedule(cronExpr, () => {
+      runInactivityBlockCheck()
+        .then((result) => cronStatus.recordRun('inactivity_block', { success: true, meta: result || {} }))
         .catch((err) => {
-          console.error('[Auto slot cron]', err.message);
-          cronStatus.recordRun('auto_slot_generation', { success: false, error: err.message });
+          console.error('[Inactivity cron]', err.message);
+          cronStatus.recordRun('inactivity_block', { success: false, error: err.message });
         });
-    },
-    { timezone: autoSlotTz }
-  );
-}
-
-if (process.env.DISABLE_OVERDUE_BOOKING_CRON !== '1') {
-  const overdueCron = process.env.OVERDUE_BOOKING_CRON || '*/30 * * * *';
-  cron.schedule(overdueCron, () => {
-    runOverdueBookingDetection()
-      .then((result) => cronStatus.recordRun('overdue_booking_detection', { success: true, meta: result || {} }))
-      .catch((err) => {
-        console.error('[Overdue booking cron]', err.message);
-        cronStatus.recordRun('overdue_booking_detection', { success: false, error: err.message });
-      });
-  });
-}
-
-if (process.env.DISABLE_PAYMENT_EXPIRE_CRON !== '1') {
-  const expireCron = process.env.PAYMENT_EXPIRE_CRON || '0 * * * *';
-  cron.schedule(expireCron, () => {
-    const hours = config.booking.pendingPaymentExpireHours || 12;
-    expireUnpaidBookings(hours)
-      .then((r) => {
-        if (r.expired > 0) console.log(`[Payment expire cron] Expired ${r.expired} unpaid booking(s)`);
-        cronStatus.recordRun('payment_expire', { success: true, meta: r });
-      })
-      .catch((err) => {
-        console.error('[Payment expire cron]', err.message);
-        cronStatus.recordRun('payment_expire', { success: false, error: err.message });
-      });
-  });
-}
-
-if (process.env.DISABLE_AUTO_SLOT_STARTUP !== '1') {
-  const startupDays = Number(process.env.AUTO_SLOT_STARTUP_DAYS || '7');
-  ensureSlotsOnStartup(Number.isFinite(startupDays) && startupDays > 0 ? startupDays : 7).catch((err) => {
-    console.error('[Auto slot startup]', err.message);
-  });
-}
-
-if (process.env.DISABLE_SLOT_CAPACITY_STARTUP !== '1') {
-  const slotCapacityService = require('./services/slotCapacity.service');
-  slotCapacityService.recalculateFutureSlotCapacities(null).then((result) => {
-    if (result?.updated > 0) {
-      console.log(`[Slot capacity startup] Updated ${result.updated} slot(s) to capacity ${result.capacity}`);
-    }
-  }).catch((err) => {
-    console.error('[Slot capacity startup]', err.message);
-  });
-}
-
-if (process.env.DISABLE_REACTIVATION_SCHEMA_STARTUP !== '1') {
-  const reactivationService = require('./services/reactivationRequest.service');
-  reactivationService.ensureSchemaOnStartup().catch((err) => {
-    console.error('[Reactivation schema startup]', err.message);
-  });
-}
-
-if (process.env.DISABLE_OFFLINE_BOOKING_SCHEMA_STARTUP !== '1') {
-  const { ensureOfflineBookingSchemaOnStartup } = require('./services/offlineBookingSchema.service');
-  ensureOfflineBookingSchemaOnStartup().catch((err) => {
-    console.error('[Offline booking schema startup]', err.message);
-  });
-}
-
-// Graceful shutdown handling
-const gracefulShutdown = (signal) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
-  
-  server.close(() => {
-    console.log('HTTP server closed.');
-    
-    // Close database connections
-    const { pool } = require('./db');
-    pool.end(() => {
-      console.log('Database connections closed.');
-      process.exit(0);
     });
+  }
+
+  /** Auto-generate training slots for 7 days starting today (default midnight Asia/Kolkata) */
+  if (process.env.DISABLE_AUTO_SLOT_CRON !== '1') {
+    const autoSlotCron = process.env.AUTO_SLOT_CRON || '0 0 * * *';
+    const autoSlotTz = process.env.AUTO_SLOT_CRON_TZ || 'Asia/Kolkata';
+    cron.schedule(
+      autoSlotCron,
+      () => {
+        runNightlyAutoGeneration()
+          .then((result) => cronStatus.recordRun('auto_slot_generation', { success: true, meta: result || {} }))
+          .catch((err) => {
+            console.error('[Auto slot cron]', err.message);
+            cronStatus.recordRun('auto_slot_generation', { success: false, error: err.message });
+          });
+      },
+      { timezone: autoSlotTz }
+    );
+  }
+
+  if (process.env.DISABLE_OVERDUE_BOOKING_CRON !== '1') {
+    const overdueCron = process.env.OVERDUE_BOOKING_CRON || '*/30 * * * *';
+    cron.schedule(overdueCron, () => {
+      runOverdueBookingDetection()
+        .then((result) => cronStatus.recordRun('overdue_booking_detection', { success: true, meta: result || {} }))
+        .catch((err) => {
+          console.error('[Overdue booking cron]', err.message);
+          cronStatus.recordRun('overdue_booking_detection', { success: false, error: err.message });
+        });
+    });
+  }
+
+  if (process.env.DISABLE_PAYMENT_EXPIRE_CRON !== '1') {
+    const expireCron = process.env.PAYMENT_EXPIRE_CRON || '0 * * * *';
+    cron.schedule(expireCron, () => {
+      const hours = config.booking.pendingPaymentExpireHours || 12;
+      expireUnpaidBookings(hours)
+        .then((r) => {
+          if (r.expired > 0) console.log(`[Payment expire cron] Expired ${r.expired} unpaid booking(s)`);
+          cronStatus.recordRun('payment_expire', { success: true, meta: r });
+        })
+        .catch((err) => {
+          console.error('[Payment expire cron]', err.message);
+          cronStatus.recordRun('payment_expire', { success: false, error: err.message });
+        });
+    });
+  }
+
+  if (process.env.DISABLE_AUTO_SLOT_STARTUP !== '1') {
+    const startupDays = Number(process.env.AUTO_SLOT_STARTUP_DAYS || '7');
+    ensureSlotsOnStartup(Number.isFinite(startupDays) && startupDays > 0 ? startupDays : 7).catch((err) => {
+      console.error('[Auto slot startup]', err.message);
+    });
+  }
+
+  if (process.env.DISABLE_SLOT_CAPACITY_STARTUP !== '1') {
+    const slotCapacityService = require('./services/slotCapacity.service');
+    slotCapacityService.recalculateFutureSlotCapacities(null).then((result) => {
+      if (result?.updated > 0) {
+        console.log(`[Slot capacity startup] Updated ${result.updated} slot(s) to capacity ${result.capacity}`);
+      }
+    }).catch((err) => {
+      console.error('[Slot capacity startup]', err.message);
+    });
+  }
+
+  if (process.env.DISABLE_REACTIVATION_SCHEMA_STARTUP !== '1') {
+    const reactivationService = require('./services/reactivationRequest.service');
+    reactivationService.ensureSchemaOnStartup().catch((err) => {
+      console.error('[Reactivation schema startup]', err.message);
+    });
+  }
+
+  if (process.env.DISABLE_OFFLINE_BOOKING_SCHEMA_STARTUP !== '1') {
+    const { ensureOfflineBookingSchemaOnStartup } = require('./services/offlineBookingSchema.service');
+    ensureOfflineBookingSchemaOnStartup().catch((err) => {
+      console.error('[Offline booking schema startup]', err.message);
+    });
+  }
+
+  const gracefulShutdown = (signal) => {
+    console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+    server.close(() => {
+      console.log('HTTP server closed.');
+      const { pool } = require('./db');
+      pool.end(() => {
+        console.log('Database connections closed.');
+        process.exit(0);
+      });
+    });
+
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    gracefulShutdown('uncaughtException');
   });
-
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    console.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
-};
-
-// Handle termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  gracefulShutdown('uncaughtException');
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  gracefulShutdown('unhandledRejection');
-});
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    gracefulShutdown('unhandledRejection');
+  });
+} else {
+  console.log('[vercel] Express app exported as serverless handler (listen/cron/startup jobs skipped)');
+}

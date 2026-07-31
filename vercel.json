@@ -33,5 +33,9 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/demo/browser",
+  "framework": null,
+  "installCommand": "npm install"
 }
