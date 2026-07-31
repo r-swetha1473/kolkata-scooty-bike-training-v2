@@ -1,0 +1,62 @@
+/* Theme aliases — maps legacy variables to unified design system */
+
+:root {
+  --primary-color: var(--color-primary);
+  --secondary-color: var(--color-dark);
+  --background-color: var(--color-bg);
+  --text-color: var(--color-ink);
+
+  --font-family-base: var(--font-family);
+  --font-family-display: var(--font-family);
+  --font-family-button: var(--font-family);
+
+  --primary-blue: var(--color-primary);
+  --dark-blue: var(--color-dark);
+  --bmw-primary: var(--color-primary);
+  --bmw-secondary: var(--color-dark);
+  --surface-muted: var(--color-bg);
+  --text-muted: var(--color-muted);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-soft);
+  --text-on-blue: #ffffff;
+
+  --bg-primary: var(--color-card);
+  --bg-secondary: var(--color-bg);
+  --bg-white: var(--color-card);
+  --bg-light: var(--color-bg);
+  --bg-hover: var(--color-line-soft);
+  --bg-tertiary: var(--color-line-soft);
+  --bg-dark: var(--color-dark);
+  --bg-sidebar: var(--color-dark);
+
+  --border-primary: var(--color-border);
+  --border-light: var(--color-border);
+  --border-secondary: #CBD5E1;
+  --border-accent: var(--color-primary);
+  --border-disabled: var(--color-border);
+
+  --status-success: var(--color-success);
+  --status-warning: var(--color-warning);
+  --status-error: var(--color-danger);
+  --status-info: var(--color-primary);
+  --status-success-bg: rgba(34, 197, 94, 0.1);
+  --status-error-bg: rgba(239, 68, 68, 0.1);
+  --status-warning-bg: rgba(245, 158, 11, 0.1);
+  --status-info-bg: rgba(37, 99, 235, 0.1);
+  --danger: var(--color-danger);
+
+  --shadow-blue: var(--shadow-blue);
+  --transition-base: var(--dur-med) var(--ease-out);
+  --transition-slow: var(--dur-slow) var(--ease-out);
+  --transition-fast: var(--dur-fast) ease;
+
+  --spacing-2xl: var(--space-20);
+  --spacing-3xl: var(--space-24);
+  --spacing-4xl: 8rem;
+
+  --border-radius-xl: var(--radius-xl);
+  --border-radius-2xl: 20px;
+  --border-radius-3xl: var(--radius-lg);
+  --border-radius-4xl: 28px;
+  --border-radius-full: 9999px;
+}

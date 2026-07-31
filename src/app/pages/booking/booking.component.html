@@ -1,0 +1,723 @@
+    <div class="booking-page page-shell page-enter">
+
+  <div class="booking-layout">
+
+    <aside class="booking-aside" aria-label="Progress">
+
+      <p class="ks-eyebrow">Booking</p>
+
+      <h1 class="aside-title">Reserve a slot</h1>
+
+      <p class="aside-lede">Follow the steps. Go back anytime.</p>
+
+
+
+      <ol class="aside-steps">
+
+        <li *ngFor="let s of steps; let i = index"
+
+            [class.done]="stepIndex > i"
+
+            [class.active]="step === s.id"
+
+            [class.locked]="!canNavigate(s.id)">
+
+          <button type="button"
+
+                  [disabled]="!canNavigate(s.id)"
+
+                  (click)="go(s.id)"
+
+                  [attr.aria-current]="step === s.id ? 'step' : null">
+
+            <span class="aside-dot" aria-hidden="true">
+
+              <svg *ngIf="stepIndex > i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+
+                <polyline points="20 6 9 17 4 12"></polyline>
+
+              </svg>
+
+              <ng-container *ngIf="stepIndex <= i">{{ i + 1 }}</ng-container>
+
+            </span>
+
+            <span class="aside-label">{{ s.label }}</span>
+
+          </button>
+
+        </li>
+
+      </ol>
+
+
+
+      <div class="aside-progress" aria-hidden="true">
+
+        <div class="aside-progress-fill" [style.height.%]="progressPercent"></div>
+
+      </div>
+
+
+
+      <div class="booking-summary" *ngIf="selectedCourse || selectedBranch || selectedSlot">
+
+        <p class="summary-title">Your selection</p>
+
+        <dl class="summary-list">
+
+          <div *ngIf="selectedCourse">
+
+            <dt>Course</dt>
+
+            <dd>{{ selectedCourse.name }}</dd>
+
+          </div>
+
+          <div *ngIf="selectedBranch">
+
+            <dt>Branch</dt>
+
+            <dd>{{ selectedBranch.name }}</dd>
+
+          </div>
+
+          <div *ngIf="selectedDate && stepIndex >= 2">
+
+            <dt>Date</dt>
+
+            <dd>{{ formatDisplayDate(selectedDate) }}</dd>
+
+          </div>
+
+          <div *ngIf="selectedSlot">
+
+            <dt>Time</dt>
+
+            <dd>{{ formatTime(selectedSlot.start_time) }} – {{ formatTime(selectedSlot.end_time) }}</dd>
+
+          </div>
+
+          <div *ngIf="selectedCourse?.price_label">
+
+            <dt>Fee</dt>
+
+            <dd class="summary-price">{{ selectedCourse.price_label }}</dd>
+
+          </div>
+
+        </dl>
+
+      </div>
+
+    </aside>
+
+
+
+    <div class="booking-main">
+
+      <div class="mobile-progress" aria-hidden="true">
+
+        <div class="mobile-progress-fill" [style.width.%]="progressPercent"></div>
+
+      </div>
+
+      <p class="mobile-step-label">Step {{ stepIndex + 1 }} of {{ steps.length }} · {{ steps[stepIndex].label }}</p>
+
+
+
+      <div class="panel skeleton-panel" *ngIf="loading" aria-busy="true">
+
+        <div class="ks-skeleton sk-title"></div>
+
+        <div class="ks-skeleton sk-line"></div>
+
+        <div class="ks-skeleton sk-line short"></div>
+
+        <div class="skel-grid">
+
+          <div class="ks-skeleton sk-card"></div>
+
+          <div class="ks-skeleton sk-card"></div>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='course'">
+
+        <header class="step-head">
+
+          <h2>Choose a course</h2>
+
+          <p>Pick the program that matches your skill level.</p>
+
+        </header>
+
+        <div class="card-grid" *ngIf="courses.length; else emptyCourses">
+
+          <article
+
+            class="choice-card course-card-rich"
+
+            *ngFor="let c of courses"
+
+            (click)="selectCourse(c)"
+
+            (keyup.enter)="selectCourse(c)"
+
+            tabindex="0"
+
+            role="button"
+
+            [class.selected]="selectedCourse?.id === c.id"
+
+            [attr.aria-pressed]="selectedCourse?.id === c.id">
+
+            <div class="card-icon" aria-hidden="true">
+
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+
+              </svg>
+
+            </div>
+
+            <div class="card-body">
+
+              <h3>{{ c.name }}</h3>
+              <p class="price">{{ c.price_label }}</p>
+              <p class="tagline" *ngIf="c.tagline">{{ c.tagline }}</p>
+              <p class="desc">{{ c.description }}</p>
+              <ul class="mini-features" *ngIf="c.features?.length">
+                <li *ngFor="let f of c.features | slice:0:3">{{ f }}</li>
+              </ul>
+
+              <div class="card-meta-row">
+
+                <span class="meta-pill" *ngIf="c.duration_label">{{ c.duration_label }}</span>
+
+                <span class="meta-pill meta-pill-muted">Online booking</span>
+
+              </div>
+
+            </div>
+
+            <span class="card-check" *ngIf="selectedCourse?.id === c.id" aria-hidden="true">
+
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+
+                <polyline points="20 6 9 17 4 12"></polyline>
+
+              </svg>
+
+            </span>
+
+          </article>
+
+        </div>
+
+        <ng-template #emptyCourses>
+
+          <div class="ks-empty">No courses available right now.</div>
+
+        </ng-template>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='branch'">
+
+        <header class="step-head">
+
+          <h2>Choose a branch</h2>
+
+          <p *ngIf="selectedCourse">For <strong>{{ selectedCourse.name }}</strong></p>
+
+        </header>
+
+        <div class="card-grid" *ngIf="branches.length; else emptyBranches">
+
+          <article
+
+            class="choice-card branch-card-rich"
+
+            *ngFor="let b of branches"
+
+            (click)="selectBranch(b)"
+
+            (keyup.enter)="selectBranch(b)"
+
+            tabindex="0"
+
+            role="button"
+
+            [class.selected]="selectedBranch?.id === b.id"
+
+            [attr.aria-pressed]="selectedBranch?.id === b.id">
+
+            <div class="card-icon branch-icon" aria-hidden="true">
+
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+
+                <circle cx="12" cy="10" r="3"></circle>
+
+              </svg>
+
+            </div>
+
+            <div class="card-body">
+
+              <h3>{{ b.name }}</h3>
+
+              <p class="desc">{{ b.address }}</p>
+
+              <div class="card-meta-row" *ngIf="b.opening_time">
+
+                <span class="meta-pill">
+
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+                    <circle cx="12" cy="12" r="10"></circle>
+
+                    <polyline points="12 6 12 12 16 14"></polyline>
+
+                  </svg>
+
+                  {{ b.opening_time }} – {{ b.closing_time }}
+
+                </span>
+
+                <span class="meta-pill meta-pill-muted">{{ b.slot_duration_minutes }} min slots</span>
+
+              </div>
+
+            </div>
+
+            <span class="card-check" *ngIf="selectedBranch?.id === b.id" aria-hidden="true">
+
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+
+                <polyline points="20 6 9 17 4 12"></polyline>
+
+              </svg>
+
+            </span>
+
+          </article>
+
+        </div>
+
+        <ng-template #emptyBranches>
+
+          <div class="ks-empty">No branches available.</div>
+
+        </ng-template>
+
+        <div class="step-actions">
+
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('course')">Back</button>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='date'">
+
+        <header class="step-head">
+
+          <h2>Choose a date</h2>
+
+          <p *ngIf="selectedBranch">At <strong>{{ selectedBranch.name }}</strong>. Select a day to see times.</p>
+
+        </header>
+
+        <div class="booking-calendar" role="group" aria-label="Choose training date">
+          <div class="cal-toolbar">
+            <button type="button" class="cal-nav" (click)="prevMonth()" aria-label="Previous month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="cal-month-label">
+              <span>{{ calendarTitle }}</span>
+              <span class="cal-probe" *ngIf="probingMonth">Checking availability…</span>
+            </div>
+            <button type="button" class="cal-nav" (click)="nextMonth()" aria-label="Next month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button type="button" class="cal-today" (click)="goToToday()">Today</button>
+          </div>
+
+          <div class="cal-weekdays" aria-hidden="true">
+            <span *ngFor="let w of weekdays">{{ w }}</span>
+          </div>
+
+          <div class="cal-grid" role="grid">
+            <button
+              type="button"
+              class="cal-day"
+              *ngFor="let d of calendarDays"
+              role="gridcell"
+              [attr.aria-label]="formatDisplayDate(d.date) + (d.badgeLabel ? ', ' + d.badgeLabel : '')"
+              [attr.aria-selected]="d.isSelected"
+              [attr.aria-disabled]="d.disabled"
+              [disabled]="d.disabled"
+              [class.in-month]="d.inMonth"
+              [class.out-month]="!d.inMonth"
+              [class.is-past]="d.isPast"
+              [class.is-today]="d.isToday"
+              [class.is-selected]="d.isSelected"
+              [class.is-available]="d.badge === 'available'"
+              [class.is-opens-later]="d.badge === 'opens_later'"
+              [class.is-full]="d.badge === 'full'"
+              [class.is-holiday]="d.badge === 'holiday'"
+              [class.is-closed]="d.badge === 'noschedule' || d.badge === 'today_closed'"
+              (click)="selectCalendarDate(d)">
+              <span class="cal-day-num">{{ d.day }}</span>
+              <span class="cal-badge" *ngIf="d.inMonth && !d.isPast && d.badge !== 'none'" [attr.data-badge]="d.badge" aria-hidden="true">
+                <span class="cal-badge-icon">{{ badgeIcon(d.badge) }}</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="cal-legend" aria-hidden="true">
+            <span>🟢 Available</span>
+            <span>🔒 Opens later</span>
+            <span>🔴 Full</span>
+            <span>🎉 Holiday</span>
+            <span class="leg-today-mark">Today</span>
+          </div>
+        </div>
+
+        <p class="cal-selected-line" *ngIf="selectedDate">
+          Selected: <strong>{{ formatDisplayDate(selectedDate) }}</strong>
+        </p>
+
+        <div class="step-actions">
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('branch')">Back</button>
+          <button type="button" class="ks-btn ks-btn-primary" (click)="loadSlots()" [disabled]="!selectedDate || selectedDate < minDate">
+            Continue to times
+          </button>
+        </div>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='slot'">
+
+        <header class="step-head">
+
+          <h2>Choose a time</h2>
+
+          <p>{{ formatDisplayDate(selectedDate) }} · {{ selectedBranch?.name }}</p>
+
+        </header>
+
+        <!-- Today closed -->
+        <div class="booking-info-card" *ngIf="slotPanelMode === 'today_closed'" role="status">
+          <h3>Bookings for today are now closed</h3>
+          <p>Bookings require at least {{ MIN_ADVANCE_HOURS }} hours’ advance notice.</p>
+          <p>Please choose tomorrow to continue.</p>
+          <button type="button" class="ks-btn ks-btn-primary" (click)="chooseTomorrow()">Choose Tomorrow</button>
+        </div>
+
+        <!-- Outside 24h window -->
+        <div class="booking-info-card" *ngIf="slotPanelMode === 'opens_later'" role="status">
+          <h3>Bookings for this date are not open yet</h3>
+          <p>{{ bookingWindowLabel() }}</p>
+          <p *ngIf="bookingOpensAtLabel">
+            Bookings for <strong>{{ selectedDateLongLabel }}</strong> will open on
+            <strong>{{ bookingOpensAtLabel }}</strong>.
+          </p>
+          <p *ngIf="!bookingOpensAtLabel">Please choose an earlier available date or return later.</p>
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('date')">Choose another date</button>
+        </div>
+
+        <!-- Fully booked -->
+        <div class="booking-info-card" *ngIf="slotPanelMode === 'fully_booked'" role="status">
+          <h3>Fully booked</h3>
+          <p>All training slots for this date are full. Please choose another day.</p>
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('date')">Choose another date</button>
+        </div>
+
+        <!-- Holiday -->
+        <div class="booking-info-card holiday" *ngIf="slotPanelMode === 'holiday'" role="status">
+          <h3>Holiday</h3>
+          <p>This branch has no sessions scheduled on this date. Please pick another day.</p>
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('date')">Choose another date</button>
+        </div>
+
+        <!-- No schedule / branch closed -->
+        <div class="booking-info-card" *ngIf="slotPanelMode === 'no_schedule'" role="status">
+          <h3>No schedule available</h3>
+          <p>There are no training slots for this date (branch closed or schedule not configured).</p>
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('date')">Choose another date</button>
+        </div>
+
+        <div class="slot-periods" *ngIf="slotPanelMode === 'bookable_list' && displaySlots.length">
+          <section class="slot-period" *ngIf="morningSlots.length">
+            <h3 class="period-title">Morning</h3>
+            <div class="slot-grid" role="list">
+              <button
+                type="button"
+                class="slot-chip"
+                *ngFor="let s of morningSlots"
+                role="listitem"
+                (click)="selectSlot(s)"
+                [disabled]="!canSelectSlot(s)"
+                [class.slot-available]="canSelectSlot(s)"
+                [class.slot-full]="isSlotFull(s)"
+                [class.slot-locked]="!canSelectSlot(s) && !isSlotFull(s)"
+                [class.slot-selected]="selectedSlot?.id === s.id"
+                [attr.aria-pressed]="selectedSlot?.id === s.id"
+                [attr.title]="slotTitle(s)">
+                <span class="chip-time">{{ formatTimeRange(s) }}</span>
+                <span class="chip-seats" [class.is-full]="isSlotFull(s) || !canSelectSlot(s)">
+                  {{ slotAvailabilityLabel(s) }}
+                </span>
+                <span class="chip-duration">{{ slotDurationLabel(s) }}</span>
+                <span class="chip-cta" *ngIf="canSelectSlot(s)">Book Now</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="slot-period" *ngIf="afternoonSlots.length">
+            <h3 class="period-title">Afternoon</h3>
+            <div class="slot-grid" role="list">
+              <button
+                type="button"
+                class="slot-chip"
+                *ngFor="let s of afternoonSlots"
+                role="listitem"
+                (click)="selectSlot(s)"
+                [disabled]="!canSelectSlot(s)"
+                [class.slot-available]="canSelectSlot(s)"
+                [class.slot-full]="isSlotFull(s)"
+                [class.slot-locked]="!canSelectSlot(s) && !isSlotFull(s)"
+                [class.slot-selected]="selectedSlot?.id === s.id"
+                [attr.aria-pressed]="selectedSlot?.id === s.id"
+                [attr.title]="slotTitle(s)">
+                <span class="chip-time">{{ formatTimeRange(s) }}</span>
+                <span class="chip-seats" [class.is-full]="isSlotFull(s) || !canSelectSlot(s)">
+                  {{ slotAvailabilityLabel(s) }}
+                </span>
+                <span class="chip-duration">{{ slotDurationLabel(s) }}</span>
+                <span class="chip-cta" *ngIf="canSelectSlot(s)">Book Now</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="slot-period" *ngIf="eveningSlots.length">
+            <h3 class="period-title">Evening</h3>
+            <div class="slot-grid" role="list">
+              <button
+                type="button"
+                class="slot-chip"
+                *ngFor="let s of eveningSlots"
+                role="listitem"
+                (click)="selectSlot(s)"
+                [disabled]="!canSelectSlot(s)"
+                [class.slot-available]="canSelectSlot(s)"
+                [class.slot-full]="isSlotFull(s)"
+                [class.slot-locked]="!canSelectSlot(s) && !isSlotFull(s)"
+                [class.slot-selected]="selectedSlot?.id === s.id"
+                [attr.aria-pressed]="selectedSlot?.id === s.id"
+                [attr.title]="slotTitle(s)">
+                <span class="chip-time">{{ formatTimeRange(s) }}</span>
+                <span class="chip-seats" [class.is-full]="isSlotFull(s) || !canSelectSlot(s)">
+                  {{ slotAvailabilityLabel(s) }}
+                </span>
+                <span class="chip-duration">{{ slotDurationLabel(s) }}</span>
+                <span class="chip-cta" *ngIf="canSelectSlot(s)">Book Now</span>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div class="step-actions">
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('date')">Back</button>
+        </div>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='details' && selectedSlot">
+
+        <header class="step-head">
+
+          <h2>Your details</h2>
+
+          <p>{{ formatTimeRange(selectedSlot) }} · {{ remainingSeats(selectedSlot) }} seat{{ remainingSeats(selectedSlot) === 1 ? '' : 's' }} left · {{ selectedBranch?.name }}</p>
+
+        </header>
+
+        <label class="field">
+
+          <span>Vehicle</span>
+
+          <select [(ngModel)]="selectedVehicleId" required>
+
+            <option value="" disabled>Select vehicle</option>
+
+            <option *ngFor="let v of vehicleOptions(selectedSlot)" [value]="v.vehicle_id">
+
+              {{ v.vehicle_name }} ({{ v.booked }}/{{ v.capacity }})
+
+            </option>
+
+          </select>
+
+        </label>
+
+        <label class="field">
+
+          <span>Mobile (10 digits)</span>
+
+          <input type="tel" [(ngModel)]="phone" maxlength="10" inputmode="numeric" autocomplete="tel" />
+
+        </label>
+
+        <label class="field">
+
+          <span>Notes (optional)</span>
+
+          <textarea [(ngModel)]="notes" rows="3"></textarea>
+
+        </label>
+
+        <div class="field coupon-field">
+          <span>Coupon code (optional)</span>
+          <div class="coupon-row">
+            <input type="text" [(ngModel)]="couponCode" placeholder="e.g. SAVE10" (ngModelChange)="couponResult = null; couponError = ''" />
+            <button type="button" class="ks-btn ks-btn-ghost" (click)="applyCoupon()" [disabled]="couponValidating || !couponCode.trim()">
+              {{ couponValidating ? 'Checking…' : 'Apply' }}
+            </button>
+            <button type="button" class="ks-btn ks-btn-ghost" *ngIf="couponResult" (click)="clearCoupon()">Clear</button>
+          </div>
+          <p class="coupon-ok" *ngIf="couponResult">Discount ₹{{ couponResult.discount_amount }} · Pay ₹{{ couponResult.final_amount }}</p>
+          <p class="coupon-err" *ngIf="couponError" role="alert">{{ couponError }}</p>
+        </div>
+
+        <div class="step-actions">
+
+          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('slot')">Back</button>
+
+          <button type="button" class="ks-btn ks-btn-primary" (click)="confirmDetails()" [disabled]="loading">Hold slot &amp; continue</button>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="panel step-panel" *ngIf="!loading && step==='payment'">
+
+        <header class="step-head">
+
+          <h2>Payment proof</h2>
+
+          <p>Pay <strong>{{ payableLabel }}</strong>. Upload your receipt.</p>
+
+        </header>
+
+        <div class="payment-note">Booking held as pending payment until verification.</div>
+        <p class="booking-ref-line" *ngIf="createdBooking?.booking_reference">
+          Booking reference: <strong>{{ createdBooking.booking_reference }}</strong>
+        </p>
+
+        <div class="payment-error" *ngIf="paymentError" role="alert">{{ paymentError }}</div>
+
+        <label class="field">
+
+          <span>UPI / bank reference</span>
+
+          <input type="text" [(ngModel)]="referenceNumber" maxlength="100" autocomplete="off" />
+
+        </label>
+
+        <label class="field">
+
+          <span>Receipt (JPG, PNG, WebP, PDF)</span>
+
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" (change)="onReceiptSelected($event)" />
+
+        </label>
+
+        <div class="upload-file-chip" *ngIf="receiptFile">
+
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+
+            <polyline points="14 2 14 8 20 8"></polyline>
+
+          </svg>
+
+          {{ receiptFile.name }}
+
+        </div>
+
+        <div class="upload-progress" *ngIf="uploadProgress > 0 && uploadProgress < 100">
+
+          <div class="upload-progress-bar">
+
+            <div class="upload-progress-fill" [style.width.%]="uploadProgress"></div>
+
+          </div>
+
+          <p class="upload-progress-label">Uploading receipt… {{ uploadProgress }}%</p>
+
+        </div>
+
+        <div class="step-actions">
+
+          <button type="button" class="ks-btn ks-btn-primary" (click)="submitPayment()" [disabled]="loading || (uploadProgress > 0 && uploadProgress < 100)">
+
+            {{ loading ? 'Submitting…' : 'Submit for approval' }}
+
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="panel success-panel motion-success-pulse" *ngIf="!loading && step==='done'">
+
+        <div class="success-mark ks-animate-scale" aria-hidden="true">
+
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+
+            <polyline points="20 6 9 17 4 12"></polyline>
+
+          </svg>
+
+        </div>
+
+        <h2>You're booked</h2>
+
+        <p>We'll confirm after payment check. Track status in My bookings.</p>
+
+        <a routerLink="/my-bookings" class="ks-btn ks-btn-primary">My bookings</a>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+

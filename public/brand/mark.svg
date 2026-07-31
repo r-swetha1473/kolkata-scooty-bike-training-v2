@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kolkata Scooty Bike Training">
+  <title>Kolkata Scooty</title>
+  <path d="M32 4 L56 14 V36 C56 50 42 58 32 62 C22 58 8 50 8 36 V14 Z" fill="#2563EB"/>
+  <circle cx="22" cy="38" r="9" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
+  <circle cx="42" cy="38" r="9" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
+  <circle cx="22" cy="38" r="2.6" fill="#FFFFFF"/>
+  <circle cx="42" cy="38" r="2.6" fill="#FFFFFF"/>
+  <path d="M22 38 L32 16 L42 38" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M26 12 h12" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M16 52 Q32 58 48 52" fill="none" stroke="#93C5FD" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

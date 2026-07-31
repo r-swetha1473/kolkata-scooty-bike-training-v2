@@ -1,0 +1,385 @@
+{
+  "gallery": [
+    {
+      "slug": "scooty-training",
+      "title": "Scooty Training",
+      "category": "Scooty Training",
+      "url": "https://images.unsplash.com/photo-1711831995801-58428c875943?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/scooty-training.webp",
+      "card": "/media/gallery/scooty-training-card.webp",
+      "thumb": "/media/gallery/scooty-training-thumb.webp",
+      "fullJpg": "/media/gallery/scooty-training.jpg"
+    },
+    {
+      "slug": "bike-training",
+      "title": "Bike Training",
+      "category": "Bike Training",
+      "url": "https://images.unsplash.com/photo-1657769268990-65a821e69f3b?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/bike-training.webp",
+      "card": "/media/gallery/bike-training-card.webp",
+      "thumb": "/media/gallery/bike-training-thumb.webp",
+      "fullJpg": "/media/gallery/bike-training.jpg"
+    },
+    {
+      "slug": "women-riding",
+      "title": "Women Riding Training",
+      "category": "Women Riding Training",
+      "url": "https://images.unsplash.com/photo-1675490433104-50207a8a69f2?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/women-riding.webp",
+      "card": "/media/gallery/women-riding-card.webp",
+      "thumb": "/media/gallery/women-riding-thumb.webp",
+      "fullJpg": "/media/gallery/women-riding.jpg"
+    },
+    {
+      "slug": "men-riding",
+      "title": "Men Riding Training",
+      "category": "Men Riding Training",
+      "url": "https://images.unsplash.com/photo-1598548841213-9cdbcdf8ec47?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/men-riding.webp",
+      "card": "/media/gallery/men-riding-card.webp",
+      "thumb": "/media/gallery/men-riding-thumb.webp",
+      "fullJpg": "/media/gallery/men-riding.jpg"
+    },
+    {
+      "slug": "beginner-classes",
+      "title": "Beginner Classes",
+      "category": "Beginner Classes",
+      "url": "https://images.unsplash.com/photo-1558981285-6f0c94958bb6?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/beginner-classes.webp",
+      "card": "/media/gallery/beginner-classes-card.webp",
+      "thumb": "/media/gallery/beginner-classes-thumb.webp",
+      "fullJpg": "/media/gallery/beginner-classes.jpg"
+    },
+    {
+      "slug": "road-practice",
+      "title": "Road Practice",
+      "category": "Road Practice",
+      "url": "https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/road-practice.webp",
+      "card": "/media/gallery/road-practice-card.webp",
+      "thumb": "/media/gallery/road-practice-thumb.webp",
+      "fullJpg": "/media/gallery/road-practice.jpg"
+    },
+    {
+      "slug": "helmet-safety",
+      "title": "Helmet Safety",
+      "category": "Helmet Safety",
+      "url": "https://images.unsplash.com/photo-1590506995460-d0d9892b54da?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/helmet-safety.webp",
+      "card": "/media/gallery/helmet-safety-card.webp",
+      "thumb": "/media/gallery/helmet-safety-thumb.webp",
+      "fullJpg": "/media/gallery/helmet-safety.jpg"
+    },
+    {
+      "slug": "trainer-student",
+      "title": "Trainer with Student",
+      "category": "Trainer with Student",
+      "url": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/trainer-student.webp",
+      "card": "/media/gallery/trainer-student-card.webp",
+      "thumb": "/media/gallery/trainer-student-thumb.webp",
+      "fullJpg": "/media/gallery/trainer-student.jpg"
+    },
+    {
+      "slug": "training-ground",
+      "title": "Training Ground",
+      "category": "Training Ground",
+      "url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/training-ground.webp",
+      "card": "/media/gallery/training-ground-card.webp",
+      "thumb": "/media/gallery/training-ground-thumb.webp",
+      "fullJpg": "/media/gallery/training-ground.jpg"
+    },
+    {
+      "slug": "students-practicing",
+      "title": "Students Practicing",
+      "category": "Students Practicing",
+      "url": "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/students-practicing.webp",
+      "card": "/media/gallery/students-practicing-card.webp",
+      "thumb": "/media/gallery/students-practicing-thumb.webp",
+      "fullJpg": "/media/gallery/students-practicing.jpg"
+    },
+    {
+      "slug": "learning-sessions",
+      "title": "Learning Sessions",
+      "category": "Learning Sessions",
+      "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/learning-sessions.webp",
+      "card": "/media/gallery/learning-sessions-card.webp",
+      "thumb": "/media/gallery/learning-sessions-thumb.webp",
+      "fullJpg": "/media/gallery/learning-sessions.jpg"
+    },
+    {
+      "slug": "branch-photos",
+      "title": "Branch Photos",
+      "category": "Branch Photos",
+      "url": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/branch-photos.webp",
+      "card": "/media/gallery/branch-photos-card.webp",
+      "thumb": "/media/gallery/branch-photos-thumb.webp",
+      "fullJpg": "/media/gallery/branch-photos.jpg"
+    },
+    {
+      "slug": "bike-parking",
+      "title": "Bike Parking",
+      "category": "Bike Parking",
+      "url": "https://images.unsplash.com/photo-1558980664-769d59546b3d?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/bike-parking.webp",
+      "card": "/media/gallery/bike-parking-card.webp",
+      "thumb": "/media/gallery/bike-parking-thumb.webp",
+      "fullJpg": "/media/gallery/bike-parking.jpg"
+    },
+    {
+      "slug": "safety-demo",
+      "title": "Safety Demonstration",
+      "category": "Safety Demonstration",
+      "url": "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/safety-demo.webp",
+      "card": "/media/gallery/safety-demo-card.webp",
+      "thumb": "/media/gallery/safety-demo-thumb.webp",
+      "fullJpg": "/media/gallery/safety-demo.jpg"
+    },
+    {
+      "slug": "traffic-awareness",
+      "title": "Traffic Awareness",
+      "category": "Traffic Awareness",
+      "url": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/gallery/traffic-awareness.webp",
+      "card": "/media/gallery/traffic-awareness-card.webp",
+      "thumb": "/media/gallery/traffic-awareness-thumb.webp",
+      "fullJpg": "/media/gallery/traffic-awareness.jpg"
+    }
+  ],
+  "courses": [
+    {
+      "slug": "basic-scooty",
+      "url": "https://images.unsplash.com/photo-1711831995801-58428c875943?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/basic-scooty.webp",
+      "card": "/media/courses/basic-scooty-card.webp",
+      "thumb": "/media/courses/basic-scooty-thumb.webp",
+      "fullJpg": "/media/courses/basic-scooty.jpg",
+      "banner": "/media/courses/basic-scooty-banner.webp",
+      "mobile": "/media/courses/basic-scooty-mobile.webp",
+      "feature": "/media/courses/basic-scooty.webp"
+    },
+    {
+      "slug": "advanced-scooty",
+      "url": "https://images.unsplash.com/photo-1675490433104-50207a8a69f2?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/advanced-scooty.webp",
+      "card": "/media/courses/advanced-scooty-card.webp",
+      "thumb": "/media/courses/advanced-scooty-thumb.webp",
+      "fullJpg": "/media/courses/advanced-scooty.jpg",
+      "banner": "/media/courses/advanced-scooty-banner.webp",
+      "mobile": "/media/courses/advanced-scooty-mobile.webp",
+      "feature": "/media/courses/advanced-scooty.webp"
+    },
+    {
+      "slug": "bike-training",
+      "url": "https://images.unsplash.com/photo-1657769268990-65a821e69f3b?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/bike-training.webp",
+      "card": "/media/courses/bike-training-card.webp",
+      "thumb": "/media/courses/bike-training-thumb.webp",
+      "fullJpg": "/media/courses/bike-training.jpg",
+      "banner": "/media/courses/bike-training-banner.webp",
+      "mobile": "/media/courses/bike-training-mobile.webp",
+      "feature": "/media/courses/bike-training.webp"
+    },
+    {
+      "slug": "doorstep",
+      "url": "https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/doorstep.webp",
+      "card": "/media/courses/doorstep-card.webp",
+      "thumb": "/media/courses/doorstep-thumb.webp",
+      "fullJpg": "/media/courses/doorstep.jpg",
+      "banner": "/media/courses/doorstep-banner.webp",
+      "mobile": "/media/courses/doorstep-mobile.webp",
+      "feature": "/media/courses/doorstep.webp"
+    },
+    {
+      "slug": "rto-assistance",
+      "url": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/rto-assistance.webp",
+      "card": "/media/courses/rto-assistance-card.webp",
+      "thumb": "/media/courses/rto-assistance-thumb.webp",
+      "fullJpg": "/media/courses/rto-assistance.jpg",
+      "banner": "/media/courses/rto-assistance-banner.webp",
+      "mobile": "/media/courses/rto-assistance-mobile.webp",
+      "feature": "/media/courses/rto-assistance.webp"
+    },
+    {
+      "slug": "ladies-special",
+      "url": "https://images.unsplash.com/photo-1675490433104-50207a8a69f2?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/ladies-special.webp",
+      "card": "/media/courses/ladies-special-card.webp",
+      "thumb": "/media/courses/ladies-special-thumb.webp",
+      "fullJpg": "/media/courses/ladies-special.jpg",
+      "banner": "/media/courses/ladies-special-banner.webp",
+      "mobile": "/media/courses/ladies-special-mobile.webp",
+      "feature": "/media/courses/ladies-special.webp"
+    },
+    {
+      "slug": "road-confidence",
+      "url": "https://images.unsplash.com/photo-1598548841213-9cdbcdf8ec47?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/road-confidence.webp",
+      "card": "/media/courses/road-confidence-card.webp",
+      "thumb": "/media/courses/road-confidence-thumb.webp",
+      "fullJpg": "/media/courses/road-confidence.jpg",
+      "banner": "/media/courses/road-confidence-banner.webp",
+      "mobile": "/media/courses/road-confidence-mobile.webp",
+      "feature": "/media/courses/road-confidence.webp"
+    },
+    {
+      "slug": "refresher",
+      "url": "https://images.unsplash.com/photo-1590506995460-d0d9892b54da?auto=format&fit=crop&w=1600&q=80",
+      "full": "/media/courses/refresher.webp",
+      "card": "/media/courses/refresher-card.webp",
+      "thumb": "/media/courses/refresher-thumb.webp",
+      "fullJpg": "/media/courses/refresher.jpg",
+      "banner": "/media/courses/refresher-banner.webp",
+      "mobile": "/media/courses/refresher-mobile.webp",
+      "feature": "/media/courses/refresher.webp"
+    }
+  ],
+  "blogs": [
+    {
+      "slug": "how-to-learn-scooty-riding-safely",
+      "url": "https://images.unsplash.com/photo-1711831995801-58428c875943?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/how-to-learn-scooty-riding-safely.webp",
+      "card": "/media/blogs/how-to-learn-scooty-riding-safely-card.webp",
+      "thumb": "/media/blogs/how-to-learn-scooty-riding-safely-thumb.webp",
+      "fullJpg": "/media/blogs/how-to-learn-scooty-riding-safely.jpg"
+    },
+    {
+      "slug": "how-long-learn-bike-riding",
+      "url": "https://images.unsplash.com/photo-1657769268990-65a821e69f3b?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/how-long-learn-bike-riding.webp",
+      "card": "/media/blogs/how-long-learn-bike-riding-card.webp",
+      "thumb": "/media/blogs/how-long-learn-bike-riding-thumb.webp",
+      "fullJpg": "/media/blogs/how-long-learn-bike-riding.jpg"
+    },
+    {
+      "slug": "10-beginner-riding-mistakes",
+      "url": "https://images.unsplash.com/photo-1558981285-6f0c94958bb6?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/10-beginner-riding-mistakes.webp",
+      "card": "/media/blogs/10-beginner-riding-mistakes-card.webp",
+      "thumb": "/media/blogs/10-beginner-riding-mistakes-thumb.webp",
+      "fullJpg": "/media/blogs/10-beginner-riding-mistakes.jpg"
+    },
+    {
+      "slug": "best-scooty-for-beginners",
+      "url": "https://images.unsplash.com/photo-1558980664-769d59546b3d?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/best-scooty-for-beginners.webp",
+      "card": "/media/blogs/best-scooty-for-beginners-card.webp",
+      "thumb": "/media/blogs/best-scooty-for-beginners-thumb.webp",
+      "fullJpg": "/media/blogs/best-scooty-for-beginners.jpg"
+    },
+    {
+      "slug": "road-safety-tips-kolkata",
+      "url": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/road-safety-tips-kolkata.webp",
+      "card": "/media/blogs/road-safety-tips-kolkata-card.webp",
+      "thumb": "/media/blogs/road-safety-tips-kolkata-thumb.webp",
+      "fullJpg": "/media/blogs/road-safety-tips-kolkata.jpg"
+    },
+    {
+      "slug": "helmet-safety-guide",
+      "url": "https://images.unsplash.com/photo-1590506995460-d0d9892b54da?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/helmet-safety-guide.webp",
+      "card": "/media/blogs/helmet-safety-guide-card.webp",
+      "thumb": "/media/blogs/helmet-safety-guide-thumb.webp",
+      "fullJpg": "/media/blogs/helmet-safety-guide.jpg"
+    },
+    {
+      "slug": "women-can-learn-scooty-easily",
+      "url": "https://images.unsplash.com/photo-1675490433104-50207a8a69f2?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/women-can-learn-scooty-easily.webp",
+      "card": "/media/blogs/women-can-learn-scooty-easily-card.webp",
+      "thumb": "/media/blogs/women-can-learn-scooty-easily-thumb.webp",
+      "fullJpg": "/media/blogs/women-can-learn-scooty-easily.jpg"
+    },
+    {
+      "slug": "traffic-rules-every-rider",
+      "url": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/traffic-rules-every-rider.webp",
+      "card": "/media/blogs/traffic-rules-every-rider-card.webp",
+      "thumb": "/media/blogs/traffic-rules-every-rider-thumb.webp",
+      "fullJpg": "/media/blogs/traffic-rules-every-rider.jpg"
+    },
+    {
+      "slug": "how-to-ride-in-kolkata-traffic",
+      "url": "https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/how-to-ride-in-kolkata-traffic.webp",
+      "card": "/media/blogs/how-to-ride-in-kolkata-traffic-card.webp",
+      "thumb": "/media/blogs/how-to-ride-in-kolkata-traffic-thumb.webp",
+      "fullJpg": "/media/blogs/how-to-ride-in-kolkata-traffic.jpg"
+    },
+    {
+      "slug": "scooty-vs-motorcycle-beginners",
+      "url": "https://images.unsplash.com/photo-1598548841213-9cdbcdf8ec47?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/scooty-vs-motorcycle-beginners.webp",
+      "card": "/media/blogs/scooty-vs-motorcycle-beginners-card.webp",
+      "thumb": "/media/blogs/scooty-vs-motorcycle-beginners-thumb.webp",
+      "fullJpg": "/media/blogs/scooty-vs-motorcycle-beginners.jpg"
+    },
+    {
+      "slug": "benefits-professional-riding-training",
+      "url": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/benefits-professional-riding-training.webp",
+      "card": "/media/blogs/benefits-professional-riding-training-card.webp",
+      "thumb": "/media/blogs/benefits-professional-riding-training-thumb.webp",
+      "fullJpg": "/media/blogs/benefits-professional-riding-training.jpg"
+    },
+    {
+      "slug": "how-to-build-riding-confidence",
+      "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80",
+      "full": "/media/blogs/how-to-build-riding-confidence.webp",
+      "card": "/media/blogs/how-to-build-riding-confidence-card.webp",
+      "thumb": "/media/blogs/how-to-build-riding-confidence-thumb.webp",
+      "fullJpg": "/media/blogs/how-to-build-riding-confidence.jpg"
+    }
+  ],
+  "testimonials": [
+    {
+      "slug": "priya",
+      "url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/priya.webp"
+    },
+    {
+      "slug": "amit",
+      "url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/amit.webp"
+    },
+    {
+      "slug": "sneha",
+      "url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/sneha.webp"
+    },
+    {
+      "slug": "rajesh",
+      "url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/rajesh.webp"
+    },
+    {
+      "slug": "ananya",
+      "url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/ananya.webp"
+    },
+    {
+      "slug": "soumik",
+      "url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/soumik.webp"
+    },
+    {
+      "slug": "riya",
+      "url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/riya.webp"
+    },
+    {
+      "slug": "debashis",
+      "url": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+      "photo": "/media/testimonials/debashis.webp"
+    }
+  ],
+  "license": "Unsplash License — free to use; attribution appreciated but not required."
+}

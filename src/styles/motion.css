@@ -1,0 +1,543 @@
+/**
+ * Phase 5 — Premium Motion Design System
+ * Subtle, consistent animations (200–400ms). Respects prefers-reduced-motion.
+ */
+
+:root {
+  --motion-duration-instant: 150ms;
+  --motion-duration-fast: 200ms;
+  --motion-duration-base: 300ms;
+  --motion-duration-slow: 400ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-lift: translateY(-2px);
+  --motion-press: scale(0.98);
+}
+
+/* ── Scroll reveal ── */
+.motion-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--motion-duration-slow) var(--motion-ease-out),
+    transform var(--motion-duration-slow) var(--motion-ease-out);
+  will-change: opacity, transform;
+}
+
+.motion-reveal.motion-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.motion-reveal-left {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition:
+    opacity var(--motion-duration-slow) var(--motion-ease-out),
+    transform var(--motion-duration-slow) var(--motion-ease-out);
+}
+
+.motion-reveal-left.motion-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.motion-reveal-scale {
+  opacity: 0;
+  transform: scale(0.97);
+  transition:
+    opacity var(--motion-duration-base) var(--motion-ease-out),
+    transform var(--motion-duration-base) var(--motion-ease-out);
+}
+
+.motion-reveal-scale.motion-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Stagger children — all children must become visible (not only first 6) */
+.motion-stagger > * {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity var(--motion-duration-slow) var(--motion-ease-out),
+    transform var(--motion-duration-slow) var(--motion-ease-out);
+}
+
+.motion-stagger.motion-visible > * {
+  opacity: 1;
+  transform: none;
+}
+
+.motion-stagger.motion-visible > *:nth-child(1) { transition-delay: 0ms; }
+.motion-stagger.motion-visible > *:nth-child(2) { transition-delay: 50ms; }
+.motion-stagger.motion-visible > *:nth-child(3) { transition-delay: 100ms; }
+.motion-stagger.motion-visible > *:nth-child(4) { transition-delay: 150ms; }
+.motion-stagger.motion-visible > *:nth-child(5) { transition-delay: 200ms; }
+.motion-stagger.motion-visible > *:nth-child(6) { transition-delay: 250ms; }
+.motion-stagger.motion-visible > *:nth-child(7) { transition-delay: 300ms; }
+.motion-stagger.motion-visible > *:nth-child(8) { transition-delay: 340ms; }
+.motion-stagger.motion-visible > *:nth-child(n + 9) { transition-delay: 380ms; }
+
+/* Hero stagger */
+.hero-stagger > * {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: motion-hero-in var(--motion-duration-slow) var(--motion-ease-out) forwards;
+}
+
+.hero-stagger > *:nth-child(1) { animation-delay: 80ms; }
+.hero-stagger > *:nth-child(2) { animation-delay: 160ms; }
+.hero-stagger > *:nth-child(3) { animation-delay: 240ms; }
+.hero-stagger > *:nth-child(4) { animation-delay: 320ms; }
+.hero-stagger > *:nth-child(5) { animation-delay: 400ms; }
+
+@keyframes motion-hero-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Page transitions ── */
+.page-enter {
+  animation: motion-page-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+@keyframes motion-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+router-outlet + * {
+  animation: motion-page-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+/* ── Buttons — hover lift & press ── */
+.ks-btn:not(:disabled),
+.btn:not(:disabled),
+.admin-btn:not(:disabled),
+.cta:not(:disabled) {
+  position: relative;
+  overflow: hidden;
+}
+
+.ks-btn-primary:not(:disabled):hover,
+.btn-primary:not(:disabled):hover,
+.admin-btn-primary:not(:disabled):hover,
+.nav-cta:hover {
+  transform: var(--motion-lift);
+  box-shadow: var(--shadow-blue);
+}
+
+.ks-btn:not(:disabled):active,
+.btn:not(:disabled):active,
+.admin-btn:not(:disabled):active {
+  transform: var(--motion-press);
+  transition-duration: var(--motion-duration-instant);
+}
+
+/* ── Hero media fade-in ── */
+.xp-hero-media img {
+  animation: motion-hero-media-in 900ms var(--motion-ease-out) both;
+}
+
+@keyframes motion-hero-media-in {
+  from { opacity: 0; transform: scale(1.04); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Dropdown animation ── */
+.motion-dropdown {
+  animation: motion-dropdown-in var(--motion-duration-fast) var(--motion-ease-out) both;
+  transform-origin: top right;
+}
+
+@keyframes motion-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Cards — lift & glow ── */
+.ks-card,
+.choice-card,
+.feature-card,
+.course-card,
+.program-card,
+.panel,
+.benefit-card,
+.card,
+.slot-card-compact,
+.admin-stat-card,
+.xp-course-card,
+.xp-feature-card,
+.xp-testimonial-card,
+.xp-branch-card {
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ks-card:hover,
+.choice-card:hover,
+.feature-card:hover,
+.course-card:hover,
+.program-card:hover,
+.benefit-card:hover,
+.xp-feature-card:hover,
+.xp-testimonial-card:hover {
+  transform: var(--motion-lift);
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Booking progress bar ── */
+.booking-progress-fill,
+.wizard-progress-fill {
+  transition: width var(--motion-duration-base) var(--motion-ease-out);
+}
+
+.aside-steps li {
+  transition: color var(--motion-duration-fast), opacity var(--motion-duration-fast);
+}
+
+.aside-steps li.active .aside-label {
+  animation: motion-step-label-in var(--motion-duration-base) var(--motion-ease-out);
+}
+
+@keyframes motion-step-label-in {
+  from { opacity: 0.6; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.choice-card.selected,
+.program-card.featured {
+  box-shadow: var(--shadow-focus);
+}
+
+/* Image zoom on hover */
+.motion-img-zoom {
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.motion-img-zoom img {
+  transition: transform var(--motion-duration-slow) var(--motion-ease-out);
+}
+
+.motion-img-zoom:hover img {
+  transform: scale(1.04);
+}
+
+/* ── Navigation underline ── */
+.nav-underline {
+  position: relative;
+}
+
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0.625rem;
+  right: 0.625rem;
+  bottom: 0.35rem;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--motion-duration-base) var(--motion-ease-out);
+}
+
+.nav-underline:hover::after,
+.nav-underline.active::after {
+  transform: scaleX(1);
+}
+
+/* ── Icon hover ── */
+.motion-icon-hover {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-out), color var(--motion-duration-fast);
+}
+
+.motion-icon-hover:hover {
+  transform: scale(1.08);
+}
+
+.ks-icon-tile,
+.card-icon {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-out), background var(--motion-duration-fast);
+}
+
+.ks-card:hover .ks-icon-tile,
+.choice-card:hover .card-icon {
+  transform: scale(1.05);
+}
+
+/* ── Modals & drawers ── */
+.modal-overlay,
+.dialog-overlay,
+.admin-modal-backdrop {
+  animation: motion-backdrop-in var(--motion-duration-fast) ease both;
+}
+
+@keyframes motion-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content,
+.dialog-card,
+.admin-modal-panel {
+  animation: motion-modal-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+@keyframes motion-modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Toast ── */
+.toast {
+  transition:
+    bottom var(--motion-duration-base) var(--motion-ease-out),
+    opacity var(--motion-duration-fast),
+    transform var(--motion-duration-base) var(--motion-ease-out) !important;
+}
+
+.toast.show {
+  animation: motion-toast-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+@keyframes motion-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@media (max-width: 768px) {
+  @keyframes motion-toast-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ── Skeleton shimmer (enhanced) ── */
+.ks-skeleton::after,
+.skeleton::after,
+.admin-table-skeleton-row::after {
+  animation: motion-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes motion-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Empty states ── */
+.admin-empty-state,
+.ks-empty,
+.empty-state {
+  animation: motion-empty-in var(--motion-duration-slow) var(--motion-ease-out) both;
+}
+
+@keyframes motion-empty-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.admin-empty-state-icon {
+  animation: motion-scale-in var(--motion-duration-slow) var(--motion-ease-out) 0.1s both;
+}
+
+@keyframes motion-scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Success pulse ── */
+.motion-success-pulse {
+  animation: motion-success-pulse 0.6s var(--motion-ease-out) both;
+}
+
+@keyframes motion-success-pulse {
+  0% { transform: scale(0.85); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Tables ── */
+.admin-data-table tbody tr,
+.ks-table tbody tr {
+  transition: background var(--motion-duration-fast) ease;
+}
+
+.admin-data-table tbody tr:hover,
+.ks-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.admin-table-container,
+.admin-table-sticky {
+  transition: opacity var(--motion-duration-base) ease;
+}
+
+/* ── Admin sidebar active indicator ── */
+.admin-layout .nav-item {
+  position: relative;
+  transition:
+    background var(--motion-duration-fast),
+    color var(--motion-duration-fast),
+    padding-left var(--motion-duration-base) var(--motion-ease-out);
+}
+
+.admin-layout .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--color-primary);
+  border-radius: 0 4px 4px 0;
+  animation: motion-indicator-in var(--motion-duration-base) var(--motion-ease-out);
+}
+
+@keyframes motion-indicator-in {
+  from { height: 0; opacity: 0; }
+  to { height: 60%; opacity: 1; }
+}
+
+/* ── KPI / stat counters ── */
+.stat-v.motion-counted {
+  animation: motion-count-pop var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+@keyframes motion-count-pop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Booking wizard ── */
+.booking-main .step-panel,
+.booking-main .success-panel {
+  animation: motion-step-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+@keyframes motion-step-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.aside-steps li.active .aside-dot {
+  animation: motion-dot-pulse var(--motion-duration-base) var(--motion-ease-out);
+}
+
+@keyframes motion-dot-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+  100% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+}
+
+.slot-btn {
+  transition:
+    border-color var(--motion-duration-fast),
+    background var(--motion-duration-fast),
+    box-shadow var(--motion-duration-fast),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.slot-btn:hover {
+  transform: var(--motion-lift);
+}
+
+.slot-btn.selected {
+  animation: motion-slot-select var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+@keyframes motion-slot-select {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+.upload-progress-fill {
+  transition: width var(--motion-duration-base) var(--motion-ease-out);
+}
+
+/* ── Testimonial carousel ── */
+.testimonial-track {
+  display: flex;
+  transition: transform var(--motion-duration-slow) var(--motion-ease-out);
+}
+
+/* ── Form focus polish ── */
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.admin-input:focus,
+.admin-textarea:focus {
+  transition:
+    border-color var(--motion-duration-fast),
+    box-shadow var(--motion-duration-fast),
+    transform var(--motion-duration-fast);
+}
+
+.field input:invalid:not(:placeholder-shown),
+.admin-input:invalid:not(:placeholder-shown) {
+  animation: motion-shake 0.4s ease;
+}
+
+@keyframes motion-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+/* ── Filter bar transitions ── */
+.admin-filters-bar,
+.admin-sticky-toolbar {
+  transition: box-shadow var(--motion-duration-fast);
+}
+
+/* ── Badge pulse for status ── */
+.admin-badge,
+.status-badge {
+  transition: background var(--motion-duration-fast), color var(--motion-duration-fast);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .motion-reveal,
+  .motion-reveal-left,
+  .motion-reveal-scale,
+  .motion-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .hero-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .xp-hero-media img {
+    animation: none !important;
+  }
+
+  .motion-dropdown {
+    animation: none !important;
+  }
+
+  router-outlet + * {
+    animation: none !important;
+  }
+}

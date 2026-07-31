@@ -1,0 +1,80 @@
+/* Unified product design system */
+@import './styles/design-system.css';
+@import './styles/theme.base.css';
+@import './styles/theme.bmw.css';
+@import './styles/public-pages.css';
+@import './styles/motion.css';
+@import './styles/toast.css';
+@import './styles/experience-public.css';
+
+/* Admin design system — must be global so child admin pages inherit classes
+   (component styleUrls are encapsulated and do not style router-outlet children). */
+@import './styles/admin-bundle.css';
+
+html, body {
+  min-height: 100%;
+}
+
+button {
+  font-family: var(--font-family);
+}
+
+/* Boot splash */
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--color-dark);
+  color: #fff;
+  font-family: var(--font-family);
+}
+
+.loading-content {
+  text-align: center;
+  animation: ds-fade-up 0.5s var(--ease-out) both;
+}
+
+.loading-mark {
+  font-family: var(--font-family);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.loading-logo {
+  display: block;
+  margin: 0 auto 1rem;
+  height: 48px;
+  width: auto;
+  max-width: min(240px, 80vw);
+}
+
+.loading-content p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: var(--text-body-sm);
+}
+
+.loading-bar {
+  width: 120px;
+  height: 3px;
+  margin: 1.25rem auto 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.loading-bar span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--color-primary);
+  animation: ds-load 1.1s ease-in-out infinite;
+}
+
+@keyframes ds-load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

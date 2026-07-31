@@ -1,0 +1,356 @@
+const express = require('express');
+const db = require('../db');
+const { authenticate, authorize } = require('../middleware/auth');
+const { loadUserPermissions, requirePermission } = require('../middleware/permissions');
+const { adminAccess } = require('../middleware/adminAccess');
+const auditService = require('../services/audit.service');
+const slotCapacityService = require('../services/slotCapacity.service');
+const { invalidateCacheForBranch } = require('../scheduling/availability.service');
+const { inferVehicleType } = require('../utils/vehicleType');
+const cloudinaryService = require('../services/cloudinary.service');
+const { createImageUploader } = require('../middleware/cloudinaryUpload');
+const { jsonError } = require('../utils/httpError');
+const router = express.Router();
+
+const vehicleImageUpload = createImageUploader({
+  folder: 'vehicles',
+  maxBytesEnv: 'VEHICLE_IMAGE_MAX_BYTES'
+});
+
+// Ensure optional image column exists (idempotent)
+db.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS image_url text`).catch((err) => {
+  console.warn('[vehicles] image_url column ensure failed:', err.message);
+});
+
+const requireInactiveListAuth = (req, res, next) => {
+  if (req.query.include_inactive !== 'true') {
+    return next();
+  }
+  return authenticate(req, res, () =>
+    loadUserPermissions(req, res, () =>
+      authorize('admin', 'superadmin', 'subadmin')(req, res, () =>
+        requirePermission('vehicles', 'view')(req, res, next)
+      )
+    )
+  );
+};
+
+// Get all vehicles (active only for public, all for admin)
+router.get('/', requireInactiveListAuth, async (req, res, next) => {
+  try {
+    const { include_inactive } = req.query;
+    const includeAll = include_inactive === 'true';
+    
+    let query = 'SELECT id, name, max_per_slot, is_active, branch_id, image_url, created_at, updated_at FROM vehicles';
+    const params = [];
+    const where = [];
+
+    if (!includeAll) {
+      where.push('is_active = true');
+    }
+    if (req.query.branch_id) {
+      params.push(req.query.branch_id);
+      where.push(`branch_id = $${params.length}`);
+    }
+    if (where.length) {
+      query += ` WHERE ${where.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY name';
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Upload vehicle image → kolkata-bike-training/vehicles */
+router.post(
+  '/upload-image',
+  ...adminAccess('vehicles', 'edit'),
+  vehicleImageUpload.middleware,
+  vehicleImageUpload.handler
+);
+
+router.post(
+  '/:id/upload-image',
+  ...adminAccess('vehicles', 'edit'),
+  vehicleImageUpload.middleware,
+  async (req, res, next) => {
+    try {
+      if (!req.file) return jsonError(res, 400, 'Image file is required', 'IMAGE_REQUIRED');
+      const existing = await db.query(`SELECT id, image_url FROM vehicles WHERE id = $1`, [req.params.id]);
+      if (!existing.rows[0]) {
+        cloudinaryService.unlinkQuiet(req.file.path);
+        return jsonError(res, 404, 'Vehicle not found', 'VEHICLE_NOT_FOUND');
+      }
+      const uploaded = await cloudinaryService.uploadImage(req.file, {
+        folder: 'vehicles',
+        maxBytes: vehicleImageUpload.maxBytes
+      });
+      const updated = await db.query(
+        `UPDATE vehicles SET image_url = $1, updated_at = NOW() WHERE id = $2
+         RETURNING id, name, max_per_slot, is_active, branch_id, image_url, created_at, updated_at`,
+        [uploaded.secure_url, req.params.id]
+      );
+      await cloudinaryService.replaceImage(existing.rows[0].image_url, uploaded.secure_url);
+      res.status(201).json({
+        ...updated.rows[0],
+        image_url: uploaded.secure_url,
+        url: uploaded.secure_url,
+        secure_url: uploaded.secure_url,
+        public_id: uploaded.public_id
+      });
+    } catch (err) {
+      cloudinaryService.unlinkQuiet(req.file?.path);
+      if (err.status) return jsonError(res, err.status, err.message, err.errorCode);
+      next(err);
+    }
+  }
+);
+
+// Get vehicle by ID
+router.get('/:id', async (req, res, next) => {
+  try {
+    const result = await db.query(
+      'SELECT id, name, max_per_slot, is_active, branch_id, image_url, created_at, updated_at FROM vehicles WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      const error = new Error('Vehicle not found');
+      error.status = 404;
+      error.errorCode = 'VEHICLE_NOT_FOUND';
+      return next(error);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create vehicle (admin only)
+router.post('/', ...adminAccess('vehicles', 'create'), async (req, res, next) => {
+  try {
+    const { name, max_per_slot, is_active, branch_id } = req.body;
+    const parsedMaxPerSlot = parseInt(max_per_slot, 10);
+
+    if (!name || !name.trim()) {
+      const error = new Error('Vehicle name is required');
+      error.status = 400;
+      error.errorCode = 'MISSING_NAME';
+      return next(error);
+    }
+
+    if (!branch_id) {
+      const error = new Error('branch_id is required');
+      error.status = 400;
+      error.errorCode = 'MISSING_BRANCH_ID';
+      return next(error);
+    }
+
+    if (!Number.isFinite(parsedMaxPerSlot) || parsedMaxPerSlot < 1) {
+      const error = new Error('max_per_slot must be at least 1');
+      error.status = 400;
+      error.errorCode = 'INVALID_MAX_PER_SLOT';
+      return next(error);
+    }
+
+    const trimmedName = name.trim();
+    const legacyType = inferVehicleType(trimmedName);
+
+    const result = await db.query(
+      `INSERT INTO vehicles (name, max_per_slot, is_active, type, branch_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, max_per_slot, is_active, branch_id, image_url, created_at, updated_at`,
+      [trimmedName, parsedMaxPerSlot, is_active !== undefined ? Boolean(is_active) : true, legacyType, branch_id]
+    );
+
+    const created = result.rows[0];
+    
+    await auditService.logVehicleCreate(req.user.id, created);
+    await slotCapacityService.recalculateFutureSlotCapacities(req.user.id);
+    if (created.branch_id) invalidateCacheForBranch(created.branch_id);
+
+    res.status(201).json(created);
+  } catch (error) {
+    if (error.code === '23505') { // Unique violation
+      const uniqueError = new Error('A vehicle with this name already exists');
+      uniqueError.status = 400;
+      uniqueError.errorCode = 'DUPLICATE_NAME';
+      return next(uniqueError);
+    }
+    next(error);
+  }
+});
+
+// Update vehicle (admin only)
+router.put('/:id', ...adminAccess('vehicles', 'edit'), async (req, res, next) => {
+  try {
+    const { name, max_per_slot, is_active, branch_id, image_url } = req.body;
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      if (!name.trim()) {
+        const error = new Error('Vehicle name cannot be empty');
+        error.status = 400;
+        error.errorCode = 'INVALID_NAME';
+        return next(error);
+      }
+      const trimmedName = name.trim();
+      updates.push(`name = $${paramIndex++}`);
+      params.push(trimmedName);
+      updates.push(`type = $${paramIndex++}`);
+      params.push(inferVehicleType(trimmedName));
+    }
+
+    if (max_per_slot !== undefined) {
+      const parsedMaxPerSlot = parseInt(max_per_slot, 10);
+      if (!Number.isFinite(parsedMaxPerSlot) || parsedMaxPerSlot < 1) {
+        const error = new Error('max_per_slot must be at least 1');
+        error.status = 400;
+        error.errorCode = 'INVALID_MAX_PER_SLOT';
+        return next(error);
+      }
+      updates.push(`max_per_slot = $${paramIndex++}`);
+      params.push(parsedMaxPerSlot);
+    }
+
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      params.push(Boolean(is_active));
+    }
+
+    if (branch_id !== undefined) {
+      updates.push(`branch_id = $${paramIndex++}`);
+      params.push(branch_id);
+    }
+
+    let nextImageUrl;
+    if (image_url !== undefined) {
+      const beforeImg = await db.query(`SELECT image_url FROM vehicles WHERE id = $1`, [req.params.id]);
+      nextImageUrl = cloudinaryService.resolveUpdatedImageUrl(
+        image_url,
+        beforeImg.rows[0]?.image_url || null
+      );
+      updates.push(`image_url = $${paramIndex++}`);
+      params.push(nextImageUrl);
+    }
+
+    if (updates.length === 0) {
+      const error = new Error('No updates provided');
+      error.status = 400;
+      error.errorCode = 'NO_UPDATES';
+      return next(error);
+    }
+
+    // Get current vehicle data for audit
+    const beforeResult = await db.query(
+      'SELECT id, name, max_per_slot, is_active, image_url FROM vehicles WHERE id = $1',
+      [req.params.id]
+    );
+    if (beforeResult.rows.length === 0) {
+      const error = new Error('Vehicle not found');
+      error.status = 404;
+      error.errorCode = 'VEHICLE_NOT_FOUND';
+      return next(error);
+    }
+    const beforeData = beforeResult.rows[0];
+
+    updates.push(`updated_at = NOW()`);
+    params.push(req.params.id);
+
+    const result = await db.query(
+      `UPDATE vehicles 
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}
+       RETURNING id, name, max_per_slot, is_active, branch_id, image_url, created_at, updated_at`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      const error = new Error('Vehicle not found');
+      error.status = 404;
+      error.errorCode = 'VEHICLE_NOT_FOUND';
+      return next(error);
+    }
+
+    const updated = result.rows[0];
+    if (image_url !== undefined) {
+      await cloudinaryService.replaceImage(beforeData.image_url, updated.image_url);
+    }
+    await auditService.logVehicleUpdate(req.user.id, req.params.id, beforeData, updated);
+    await slotCapacityService.recalculateFutureSlotCapacities(req.user.id);
+    if (updated.branch_id) invalidateCacheForBranch(updated.branch_id);
+
+    res.json(updated);
+  } catch (error) {
+    if (error.code === '23505') { // Unique violation
+      const uniqueError = new Error('A vehicle with this name already exists');
+      uniqueError.status = 400;
+      uniqueError.errorCode = 'DUPLICATE_NAME';
+      return next(uniqueError);
+    }
+    next(error);
+  }
+});
+
+// Delete vehicle (admin only)
+router.delete('/:id', ...adminAccess('vehicles', 'delete'), async (req, res, next) => {
+  try {
+    // Get vehicle data before deletion for audit
+    const vehicleResult = await db.query(
+      'SELECT id, name, max_per_slot, is_active, image_url FROM vehicles WHERE id = $1',
+      [req.params.id]
+    );
+    if (vehicleResult.rows.length === 0) {
+      const error = new Error('Vehicle not found');
+      error.status = 404;
+      error.errorCode = 'VEHICLE_NOT_FOUND';
+      return next(error);
+    }
+    const vehicleData = vehicleResult.rows[0];
+
+    // Check if vehicle has active bookings
+    const bookingCheck = await db.query(
+      `SELECT COUNT(*) as count FROM bookings 
+       WHERE vehicle_id = $1 AND status NOT IN ('cancelled')`,
+      [req.params.id]
+    );
+
+    if (parseInt(bookingCheck.rows[0].count) > 0) {
+      const error = new Error('Cannot delete vehicle with active bookings. Deactivate it instead.');
+      error.status = 400;
+      error.errorCode = 'VEHICLE_HAS_BOOKINGS';
+      return next(error);
+    }
+
+    const result = await db.query(
+      'DELETE FROM vehicles WHERE id = $1 RETURNING id',
+      [req.params.id]
+    );
+
+    await cloudinaryService.destroyImage(vehicleData.image_url);
+
+    if (result.rows.length === 0) {
+      const error = new Error('Vehicle not found');
+      error.status = 404;
+      error.errorCode = 'VEHICLE_NOT_FOUND';
+      return next(error);
+    }
+
+    await auditService.logVehicleDelete(req.user.id, vehicleData);
+    await slotCapacityService.recalculateFutureSlotCapacities(req.user.id);
+
+    res.json({ message: 'Vehicle deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+module.exports = router;
+

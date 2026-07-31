@@ -1,0 +1,237 @@
+<div class="home-page page-enter">
+  <!-- HERO — full-screen image, no video -->
+  <section class="xp-hero" aria-label="Hero">
+    <div class="xp-hero-media" aria-hidden="true">
+      <img
+        *ngIf="hero.image"
+        [src]="hero.image"
+        alt=""
+        width="1600"
+        height="900"
+        fetchpriority="high"
+        decoding="async" />
+      <div class="xp-hero-overlay"></div>
+    </div>
+    <div class="container xp-hero-content hero-stagger">
+      <p class="xp-hero-brand">{{ heroBrand }}</p>
+      <h1>{{ hero.title }}</h1>
+      <p class="xp-hero-sub">{{ hero.subtitle }}</p>
+      <div class="xp-hero-actions">
+        <a [routerLink]="hero.ctaPrimaryLink" class="ks-btn ks-btn-primary">{{ hero.ctaPrimaryText }}</a>
+        <a [routerLink]="hero.ctaSecondaryLink" class="ks-btn xp-hero-secondary">{{ hero.ctaSecondaryText }}</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust badges -->
+  <div class="xp-trust-strip">
+    <div class="container">
+      <ul class="xp-trust-list">
+        <li *ngFor="let badge of trustBadges">{{ badge }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- COURSES -->
+  <section class="xp-section bg-soft motion-reveal" id="courses">
+    <div class="container">
+      <div class="xp-section-header center">
+        <p class="xp-eyebrow">Programmes</p>
+        <h2 class="xp-title">Training built for every rider</h2>
+        <p class="xp-lede center">From your first balance lesson to busy-road confidence — structured, safe, and premium.</p>
+      </div>
+      <div class="admin-table-skeleton" *ngIf="coursesLoading" style="max-width:100%">
+        <div class="admin-table-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      </div>
+      <div class="xp-course-grid motion-stagger" *ngIf="!coursesLoading && courses.length">
+        <article class="xp-course-card" *ngFor="let c of courses" [class.featured]="c.is_featured || c.featured">
+          <div class="xp-course-media motion-img-zoom">
+            <img
+              *ngIf="c.image_url"
+              [src]="c.image_url"
+              [alt]="c.name"
+              loading="lazy"
+              decoding="async"
+              width="400"
+              height="250" />
+            <span class="xp-course-difficulty">{{ c.difficulty }}</span>
+          </div>
+          <div class="xp-course-body">
+            <div class="xp-course-meta">
+              <span><strong>{{ c.price_label }}</strong></span>
+              <span>·</span>
+              <span>{{ c.duration_label }}</span>
+            </div>
+            <h3>{{ c.name }}</h3>
+            <p class="xp-course-tagline" style="white-space: pre-line">{{ c.description || c.tagline }}</p>
+            <ul class="xp-course-highlights" *ngIf="c.highlights.length">
+              <li *ngFor="let h of c.highlights">{{ h }}</li>
+            </ul>
+            <ul class="xp-course-includes" *ngIf="c.features.length">
+              <li *ngFor="let item of c.features">{{ item }}</li>
+            </ul>
+            <div class="xp-course-actions">
+              <a class="ks-btn ks-btn-primary" [routerLink]="c.ctaPath" [queryParams]="c.ctaQuery">{{ c.cta_text || c.ctaText }}</a>
+              <a class="ks-btn ks-btn-ghost" [routerLink]="['/courses', c.slug]">Learn more</a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <p class="xp-lede center" *ngIf="!coursesLoading && !courses.length">Courses will appear here once added in the admin panel.</p>
+    </div>
+  </section>
+
+  <!-- STATISTICS -->
+  <section class="xp-section xp-stats-band motion-reveal" *ngIf="statistics.length">
+    <div class="container">
+      <div class="xp-stats-grid motion-stagger">
+        <article class="xp-stat-card" *ngFor="let stat of statistics">
+          <p class="xp-stat-value">
+            <span [attr.data-count]="stat.value" [attr.data-suffix]="stat.suffix || ''">0</span>
+          </p>
+          <p class="xp-stat-label">{{ stat.label }}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY CHOOSE US -->
+  <section class="xp-section motion-reveal">
+    <div class="container">
+      <div class="xp-section-header">
+        <p class="xp-eyebrow">Why choose us</p>
+        <h2 class="xp-title">Premium training. Personal attention.</h2>
+        <p class="xp-lede">Trust, safety, and confidence — the foundation of every session we deliver.</p>
+      </div>
+      <div class="xp-features-grid motion-stagger">
+        <article class="xp-feature-card" *ngFor="let f of whyChoose">
+          <div class="xp-feature-icon" aria-hidden="true">
+            <svg class="ks-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>{{ f.title }}</h3>
+          <p>{{ f.line }}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="xp-section bg-dark motion-reveal">
+    <div class="container">
+      <div class="xp-section-header center">
+        <p class="xp-eyebrow">How it works</p>
+        <h2 class="xp-title light">Your journey to confident riding</h2>
+      </div>
+      <ol class="xp-timeline">
+        <li class="xp-timeline-item" *ngFor="let step of howItWorks">
+          <span class="xp-timeline-dot">{{ step.step }}</span>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.desc }}</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS (Admin/API only — section hidden when empty) -->
+  <section class="xp-section bg-soft motion-reveal" *ngIf="testimonials.length">
+    <div class="container">
+      <div class="xp-section-header center">
+        <p class="xp-eyebrow">Testimonials</p>
+        <h2 class="xp-title">What our students say</h2>
+      </div>
+      <div class="xp-testimonial-grid motion-stagger">
+        <article class="xp-testimonial-card" *ngFor="let t of testimonials">
+          <div class="xp-testimonial-top">
+            <img
+              *ngIf="t.photo_url"
+              class="xp-testimonial-photo"
+              [src]="t.photo_url"
+              [alt]="t.customer_name"
+              loading="lazy"
+              width="52"
+              height="52" />
+            <div
+              *ngIf="!t.photo_url"
+              class="xp-testimonial-photo xp-testimonial-initials"
+              aria-hidden="true">{{ t.customer_name.charAt(0) }}</div>
+            <div>
+              <p class="xp-testimonial-name">{{ t.customer_name }}</p>
+              <p class="xp-testimonial-type">{{ t.course_name }}</p>
+            </div>
+          </div>
+          <div class="xp-stars" [attr.aria-label]="t.rating + ' out of 5 stars'">{{ stars(t.rating) }}</div>
+          <p class="xp-testimonial-text">"{{ t.review }}"</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRANCHES -->
+  <section class="xp-section motion-reveal" id="branches">
+    <div class="container">
+      <div class="xp-section-header">
+        <p class="xp-eyebrow">Branches</p>
+        <h2 class="xp-title">Train at a centre near you</h2>
+        <p class="xp-lede">Same premium standard across every Kolkata location.</p>
+      </div>
+
+      <div class="admin-table-skeleton" *ngIf="branchesLoading" style="max-width:100%">
+        <div class="admin-table-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      </div>
+
+      <div class="xp-branch-grid motion-stagger" *ngIf="!branchesLoading && branches.length">
+        <article class="xp-branch-card" *ngFor="let b of branches">
+          <div class="xp-branch-map">
+            <img
+              *ngIf="branchImage(b) as img"
+              class="xp-branch-photo"
+              [src]="img"
+              [alt]="b.name"
+              loading="lazy"
+              width="640"
+              height="360" />
+            <a *ngIf="!branchImage(b)" [href]="mapsUrl(b)" target="_blank" rel="noopener noreferrer" class="xp-branch-map-placeholder" [attr.aria-label]="'Open ' + b.name + ' on Google Maps'">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              View on Google Maps
+            </a>
+          </div>
+          <div class="xp-branch-body">
+            <h3>{{ b.name }}</h3>
+            <div class="xp-branch-detail">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>{{ b.address }}</span>
+            </div>
+            <div class="xp-branch-detail" *ngIf="b.opening_time">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>{{ b.opening_time }} – {{ b.closing_time }}</span>
+            </div>
+            <div class="xp-branch-detail">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Scooty &amp; bike programmes available</span>
+            </div>
+            <div class="xp-branch-actions">
+              <a class="ks-btn ks-btn-primary" [routerLink]="['/booking']" [queryParams]="{ branch: b.slug }">Book this branch</a>
+              <a class="ks-btn ks-btn-ghost" [routerLink]="['/branches', b.slug]">Details</a>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="xp-section-cta" *ngIf="!branchesLoading">
+        <a routerLink="/branches" class="ks-btn-text">View all branches →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="xp-section xp-cta-band motion-reveal">
+    <div class="container xp-cta-inner">
+      <h2 class="xp-title light">Ready to ride with confidence?</h2>
+      <p class="xp-lede light">Book your first session today. Safe, professional, beginner-friendly.</p>
+      <a routerLink="/booking" class="ks-btn ks-btn-primary">Book Your Training</a>
+    </div>
+  </section>
+</div>

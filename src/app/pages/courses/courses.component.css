@@ -1,0 +1,46 @@
+.courses-page {
+  background: var(--color-card);
+}
+
+.bg-soft { background: var(--color-bg); }
+
+.page-hero .xp-eyebrow.light {
+  color: rgba(96, 165, 250, 1);
+}
+
+.xp-cta-band {
+  background: linear-gradient(135deg, var(--color-dark) 0%, #1E3A8A 100%);
+  text-align: center;
+}
+
+.xp-cta-inner {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.xp-cta-inner .xp-lede.light {
+  margin-bottom: var(--space-6);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.xp-course-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xp-course-highlights li {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+}
+
+.xp-cta-inner .ks-btn-primary {
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.45);
+}

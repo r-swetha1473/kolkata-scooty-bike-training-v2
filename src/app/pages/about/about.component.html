@@ -1,0 +1,66 @@
+<div class="about-page">
+  <section class="page-hero page-hero--photo page-hero--about motion-reveal">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">Built for safer riders</h1>
+        <p class="hero-subtitle">Kolkata Scooty Bike Training — coaching Kolkata riders with patience, safety, and confidence.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="story-section ks-section">
+    <div class="container story-slim">
+      <h2 class="section-title">Our story</h2>
+      <p>
+        We began with a simple goal: help women and men in Kolkata learn two-wheeler riding without fear.
+        Today we combine structured scooty and bike courses, certified trainers, and practical road sessions so every learner builds real confidence.
+      </p>
+    </div>
+  </section>
+
+  <section class="timeline-section ks-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Milestones</h2>
+      </div>
+      <div class="timeline-container">
+        <div class="timeline-item" *ngFor="let milestone of milestones; let i = index" [class.left]="i % 2 === 0" [class.right]="i % 2 !== 0">
+          <div class="timeline-content">
+            <div class="timeline-year">{{ milestone.year }}</div>
+            <h3>{{ milestone.title }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="values-section xp-section bg-soft motion-reveal">
+    <div class="container">
+      <div class="xp-section-header center">
+        <p class="xp-eyebrow">Our values</p>
+        <h2 class="xp-title">What we stand for</h2>
+        <p class="xp-lede center">The principles behind every lesson, every trainer, and every rider we coach.</p>
+      </div>
+      <div class="values-grid">
+        <article class="value-card" *ngFor="let value of values">
+          <div class="value-icon" [attr.data-icon]="value.icon" aria-hidden="true">
+            <svg *ngIf="value.icon === 'star'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg *ngIf="value.icon === 'shield'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg *ngIf="value.icon === 'spark'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <svg *ngIf="value.icon === 'heart'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <h3>{{ value.title }}</h3>
+          <p>{{ value.line }}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="xp-section xp-cta-band">
+    <div class="container xp-cta-inner">
+      <h2 class="xp-title light">Train with us</h2>
+      <p class="xp-lede light">Book a session in minutes and start riding with confidence.</p>
+      <a routerLink="/booking" class="ks-btn ks-btn-primary xp-cta-btn">Book Your Training</a>
+    </div>
+  </section>
+</div>

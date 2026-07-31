@@ -1,0 +1,4 @@
+/* Admin-only stylesheet bundle — loaded by admin layout, not public pages */
+@import './admin.design-system.css';
+@import './admin-ui.css';
+@import './admin-ops.css';

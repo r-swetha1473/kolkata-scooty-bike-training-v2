@@ -1,0 +1,73 @@
+<div class="courses-page page-enter">
+  <section class="page-hero page-hero--photo page-hero--courses motion-reveal">
+    <div class="container">
+      <p class="xp-eyebrow light">Programmes</p>
+      <h1 class="hero-title">Courses that match your level</h1>
+      <p class="hero-subtitle">Beginner to advanced scooty and bike training — structured, safe, and premium.</p>
+    </div>
+  </section>
+
+  <section class="xp-section bg-soft motion-reveal">
+    <div class="container">
+      <div class="xp-section-header center">
+        <h2 class="xp-title">Choose your training path</h2>
+        <p class="xp-lede center">Every programme includes certified trainers, flexible timings, and one-to-one guidance.</p>
+      </div>
+      <div class="admin-table-skeleton" *ngIf="loading" aria-busy="true">
+        <div class="admin-table-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      </div>
+      <div class="xp-course-grid motion-stagger" *ngIf="!loading && courses.length">
+        <article class="xp-course-card" *ngFor="let c of courses" [class.featured]="c.is_featured || c.featured">
+          <div class="xp-course-media motion-img-zoom">
+            <img
+              *ngIf="c.image_url"
+              [src]="c.image_url"
+              [alt]="c.name"
+              loading="lazy"
+              decoding="async"
+              width="400"
+              height="250" />
+            <span class="xp-course-difficulty">{{ c.difficulty }}</span>
+          </div>
+          <div class="xp-course-body">
+            <div class="xp-course-meta">
+              <span><strong>{{ c.price_label }}</strong></span>
+              <span>·</span>
+              <span>{{ c.duration_label }}</span>
+            </div>
+            <h3>{{ c.name }}</h3>
+            <p class="xp-course-tagline" style="white-space: pre-line">{{ c.description || c.tagline }}</p>
+            <ul class="xp-course-highlights" *ngIf="c.highlights.length">
+              <li *ngFor="let h of c.highlights">{{ h }}</li>
+            </ul>
+            <ul class="xp-course-includes" *ngIf="c.features.length">
+              <li *ngFor="let item of c.features">{{ item }}</li>
+            </ul>
+            <div class="xp-course-actions">
+              <a class="ks-btn ks-btn-primary" [routerLink]="c.ctaPath" [queryParams]="c.ctaQuery">{{ c.cta_text || c.ctaText }}</a>
+              <a class="ks-btn ks-btn-ghost" [routerLink]="['/courses', c.slug]">View details</a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <p class="xp-lede center" *ngIf="!loading && !courses.length">Courses will appear here once added in the admin panel.</p>
+    </div>
+  </section>
+
+  <section class="xp-section motion-reveal">
+    <div class="container">
+      <div class="xp-section-header center">
+        <h2 class="xp-title">Quick answers</h2>
+      </div>
+      <app-faq-accordion [faqs]="faqs"></app-faq-accordion>
+    </div>
+  </section>
+
+  <section class="xp-section xp-cta-band motion-reveal">
+    <div class="container xp-cta-inner">
+      <h2 class="xp-title light">Ready to start?</h2>
+      <p class="xp-lede light">Pick a course and lock your slot in minutes.</p>
+      <a routerLink="/booking" class="ks-btn ks-btn-primary">Book Your Training</a>
+    </div>
+  </section>
+</div>

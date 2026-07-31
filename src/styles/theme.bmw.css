@@ -1,0 +1,17 @@
+/**
+ * Legacy BMW theme aliases — unified to product design system.
+ * Kept for backward compatibility with existing component class names.
+ */
+
+:root {
+  --primary-blue: var(--color-primary);
+  --dark-blue: var(--color-dark);
+  --bmw-primary: var(--color-primary);
+  --bmw-secondary: var(--color-dark);
+  --bmw-white: var(--color-card);
+  --bmw-black: var(--color-dark);
+
+  --text-tertiary: var(--color-muted);
+  --shadow-focus: var(--shadow-focus);
+  --shadow-xl: var(--shadow-xl);
+}

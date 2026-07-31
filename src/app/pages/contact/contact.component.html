@@ -1,0 +1,199 @@
+<div class="contact-page">
+  <section class="page-hero page-hero--photo page-hero--contact motion-reveal">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">Let’s talk</h1>
+        <p class="hero-subtitle">Questions before you book? We’re here.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-info-section">
+    <div class="container">
+      <div class="info-grid">
+        <div class="info-card" *ngFor="let info of contactInfo">
+          <div class="info-icon-wrapper">
+            <svg *ngIf="info.icon === 'phone'" class="info-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            <svg *ngIf="info.icon === 'email'" class="info-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <svg *ngIf="info.icon === 'location'" class="info-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <svg *ngIf="info.icon === 'whatsapp'" class="info-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            </svg>
+            <svg *ngIf="info.icon === 'hours'" class="info-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3>{{ info.title }}</h3>
+          <a [href]="info.link" target="_blank" rel="noopener noreferrer" class="info-link">{{ info.value }}</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-form-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Send a message</h2>
+        <p class="section-subtitle">We reply within one business day.</p>
+      </div>
+      <div class="form-container">
+        <div class="form-left">
+          <form (ngSubmit)="onSubmit()" #contactForm="ngForm" class="contact-form">
+            <div class="form-group">
+              <label for="name">Full Name *</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                [(ngModel)]="formData.name"
+                required
+                placeholder="Enter your name">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email *</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  [(ngModel)]="formData.email"
+                  required
+                  placeholder="your@email.com">
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Phone</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  [(ngModel)]="formData.phone"
+                  placeholder="+91 98765 43210">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="subject">Subject</label>
+              <input
+                type="text"
+                id="subject"
+                name="subject"
+                [(ngModel)]="formData.subject"
+                placeholder="How can we help?">
+            </div>
+
+            <div class="form-group">
+              <label for="message">Message *</label>
+              <textarea
+                id="message"
+                name="message"
+                [(ngModel)]="formData.message"
+                required
+                rows="5"
+                placeholder="Tell us more about your inquiry..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-submit" [disabled]="!contactForm.form.valid">
+              Send Message
+            </button>
+          </form>
+        </div>
+
+        <div class="form-right">
+          <div class="contact-details-card">
+            <h3>Contact Information</h3>
+            <div class="contact-details-list">
+              <div class="detail-item" *ngFor="let info of contactInfo">
+                <div class="detail-icon-wrapper">
+                  <svg *ngIf="info.icon === 'phone'" class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                  </svg>
+                  <svg *ngIf="info.icon === 'email'" class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                  <svg *ngIf="info.icon === 'location'" class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <svg *ngIf="info.icon === 'hours'" class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </div>
+                <div class="detail-content">
+                  <div class="detail-label">{{ info.title }}</div>
+                  <a [href]="info.link" *ngIf="info.link !== '#'" class="detail-value">{{ info.value }}</a>
+                  <span *ngIf="info.link === '#'" class="detail-value">{{ info.value }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="social-section" *ngIf="socialLinks.length">
+            <h3>Follow Us</h3>
+            <div class="social-links">
+              <a [href]="link.url" *ngFor="let link of socialLinks" class="social-link" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="branches-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Visit a centre</h2>
+        <p class="section-subtitle">Same coaching. Local convenience.</p>
+      </div>
+      <div class="branches-grid">
+        <div class="branch-card" *ngFor="let branch of branches">
+          <h3>{{ branch.name }}</h3>
+          <div class="branch-info">
+            <div class="branch-item">
+              <svg class="branch-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span>{{ branch.address }}</span>
+            </div>
+            <div class="branch-item">
+              <svg class="branch-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <a [href]="'tel:' + branch.contact_phone" *ngIf="branch.contact_phone">{{ branch.contact_phone }}</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="xp-section bg-soft motion-reveal">
+    <div class="container">
+      <div class="xp-section-header center">
+        <h2 class="xp-title">FAQs</h2>
+        <p class="xp-lede center">Short answers.</p>
+      </div>
+      <app-faq-accordion [faqs]="faqs"></app-faq-accordion>
+    </div>
+  </section>
+
+  <section class="xp-section xp-cta-band">
+    <div class="container xp-cta-inner">
+      <h2 class="xp-title light">Prefer to book now?</h2>
+      <p class="xp-lede light">Skip the form — reserve a slot online in minutes.</p>
+      <a routerLink="/booking" class="ks-btn ks-btn-primary xp-cta-btn">Book Your Training</a>
+    </div>
+  </section>
+</div>

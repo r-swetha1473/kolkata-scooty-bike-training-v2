@@ -1,0 +1,14 @@
+[
+    {
+        "Name":  "POST /api/auth/login",
+        "Status":  200,
+        "Result":  "PASS",
+        "Detail":  "token received"
+    },
+    {
+        "Name":  "GET frontend /",
+        "Status":  200,
+        "Result":  "PASS",
+        "Detail":  "Angular served"
+    }
+]

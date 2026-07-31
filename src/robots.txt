@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /profile
+Disallow: /my-bookings
+
+Sitemap: https://kolkata-scooty-bike-training.vercel.app/sitemap.xml
