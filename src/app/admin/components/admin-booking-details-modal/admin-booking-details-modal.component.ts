@@ -15,7 +15,6 @@ import { ConfirmDialogService } from '../../../services/confirm-dialog.service';
 import { PaymentService } from '../../../services/payment.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { categorizeVehicleName } from '../../../utils/vehicle.utils';
-import { getAuthToken } from '../../../utils/auth-token.storage';
 import { firstValueFrom } from 'rxjs';
 import { AdminModalComponent } from '../admin-modal/admin-modal.component';
 
@@ -302,17 +301,13 @@ export class AdminBookingDetailsModalComponent implements OnChanges {
   }
 
   async viewPaymentProof() {
-    const paymentId = this.booking?.payment?.id;
-    if (!paymentId) return;
+    const payment = this.booking?.payment;
+    if (!payment?.id) return;
     try {
-      const token = getAuthToken();
-      const res = await fetch(this.paymentService.receiptUrl(paymentId), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      await this.paymentService.openReceipt({
+        id: payment.id,
+        receipt_path: payment.receipt_path
       });
-      if (!res.ok) throw new Error('Could not open payment proof');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener');
     } catch (err: any) {
       this.toastService.error(err?.message || 'Payment proof unavailable');
     }

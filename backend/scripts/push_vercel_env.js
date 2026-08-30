@@ -53,7 +53,7 @@ const keys = [
 const forced = {
   NODE_ENV: 'production',
   COOKIE_SECURE: 'true',
-  DB_POOL_MAX: '1',
+  DB_POOL_MAX: '3',
   REQUIRE_CLOUDINARY: '1',
 };
 

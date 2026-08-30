@@ -9,7 +9,7 @@
 const db = require('../db');
 const config = require('../app.config');
 const { normalizeIndianMobileDigits } = require('../utils/phoneNormalize');
-const { TOTAL_BOOKING_LIMIT, getBookingRules } = require('../config/app.config');
+const { TOTAL_BOOKING_LIMIT, getBookingRules, getBookingRulesSync } = require('../config/app.config');
 const bookingRulesSvc = require('./bookingRules.service');
 const { formatKolkataDateTime } = require('../utils/dateUtils');
 const vehicleService = require('./vehicle.service');
@@ -28,7 +28,7 @@ const {
  * @param {string} slotId - Slot UUID (required for full validation)
  * @param {string} userId - User UUID (optional, for user_id based checks)
  * @param {string} trainerId - Trainer UUID (required when slotId is set; must be active and free for this slot)
- * @param {{ excludeBookingId?: string, mode?: 'create'|'update' }} [options]
+ * @param {{ excludeBookingId?: string, mode?: 'create'|'update', client?: object }} [options]
  * @returns {Promise<{eligible: boolean, reason?: string, details?: object}>}
  */
 async function validateBookingEligibility(
@@ -41,8 +41,12 @@ async function validateBookingEligibility(
   trainerId = null,
   options = {}
 ) {
-  const { excludeBookingId = null, mode = 'create' } = options;
+  const { excludeBookingId = null, mode = 'create', client = null } = options;
+  // Prefer open transaction client — nested db.query() while a client is held starves Vercel pools.
+  const query = (text, params) => (client ? client.query(text, params) : db.query(text, params));
+  const log = (msg) => console.log('[BookingValidation]', msg);
   try {
+    log('Booking Validation Started');
     const normalizedPhone = normalizeIndianMobileDigits(phone);
     
     // Validate phone number format (profiles may store +91 / 91 — normalize to 10 digits first)
@@ -56,7 +60,7 @@ async function validateBookingEligibility(
 
     let isCustomer = true;
     if (userId) {
-      const pr = await getProfileInactiveStatus(userId);
+      const pr = await getProfileInactiveStatus(userId, client);
       isCustomer = !pr.role || pr.role === 'customer';
       if (isCustomerInactiveBlocked(pr)) {
         return {
@@ -67,7 +71,7 @@ async function validateBookingEligibility(
       }
 
       if (isCustomer && mode === 'create' && slotDate) {
-        const activeBooking = await db.query(
+        const activeBooking = await query(
           `SELECT b.id, s.start_time, s.slot_date
            FROM bookings b
            JOIN slots s ON b.slot_id = s.id
@@ -99,7 +103,8 @@ async function validateBookingEligibility(
     }
 
     // Get vehicle details dynamically
-    const vehicle = await vehicleService.getVehicleById(vehicleId);
+    const vehicle = await vehicleService.getVehicleById(vehicleId, client);
+    log('Checking vehicle...');
     if (!vehicle) {
       return {
         eligible: false,
@@ -129,7 +134,8 @@ async function validateBookingEligibility(
     const currentTime = new Date();
     const hoursUntilSlot = (slotStartTime - currentTime) / (1000 * 60 * 60);
     let weeklyBookingsCount = 0;
-    const rules = await getBookingRules();
+    const rules = client ? getBookingRulesSync() : await getBookingRules();
+    log('Checking booking rules...');
     const {
       maxBookingsPerWeek: WEEKLY_BOOKING_LIMIT,
       bookingGapHours: BOOKING_GAP_HOURS,
@@ -141,7 +147,7 @@ async function validateBookingEligibility(
     if (isCustomer) {
       // Same-day booking toggle
       if (!allowSameDayBooking && slotDate) {
-        const todayCheck = await db.query(
+        const todayCheck = await query(
           `SELECT ($1::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date) AS is_today`,
           [slotDate]
         );
@@ -154,10 +160,11 @@ async function validateBookingEligibility(
         }
       }
 
+      log('Checking weekly limit...');
       // Check 2: Weekly booking limit (calendar week count)
       if (mode === 'create') {
         const weeklyBookingsResult = userId
-          ? await db.query(
+          ? await query(
               `SELECT COUNT(*)::int as count
                FROM bookings b
                JOIN slots s ON b.slot_id = s.id
@@ -167,7 +174,7 @@ async function validateBookingEligibility(
                  AND COALESCE(s.slot_date, (s.start_time AT TIME ZONE 'UTC')::date) < (date_trunc('week', CURRENT_DATE) + INTERVAL '1 week')::date`,
               [userId]
             )
-          : await db.query(
+          : await query(
               `SELECT COUNT(*)::int as count
                FROM bookings b
                JOIN profiles p ON b.user_id = p.id
@@ -193,7 +200,7 @@ async function validateBookingEligibility(
       // Concurrent active booking cap (configured TOTAL_BOOKING_LIMIT)
       if (mode === 'create') {
         const activeTotalResult = userId
-          ? await db.query(
+          ? await query(
               `SELECT COUNT(*)::int AS count
                FROM bookings b
                JOIN slots s ON b.slot_id = s.id
@@ -202,7 +209,7 @@ async function validateBookingEligibility(
                  AND s.end_time > NOW()`,
               [userId]
             )
-          : await db.query(
+          : await query(
               `SELECT COUNT(*)::int AS count
                FROM bookings b
                JOIN profiles p ON b.user_id = p.id
@@ -251,7 +258,7 @@ async function validateBookingEligibility(
            ORDER BY s.start_time ASC
            LIMIT 1`;
 
-      const gapConflict = await db.query(gapQuery, gapParams);
+      const gapConflict = await query(gapQuery, gapParams);
       if (gapConflict.rows.length > 0) {
         const conflictStart = new Date(gapConflict.rows[0].start_time);
         const nextAllowed =
@@ -269,7 +276,7 @@ async function validateBookingEligibility(
 
       // Check 4: Minimum advance (timestamptz vs NOW())
       if (MIN_BOOKING_ADVANCE_HOURS > 0) {
-      const advanceCheck = await db.query(
+      const advanceCheck = await query(
         `SELECT ($1::timestamptz < NOW() + INTERVAL '${MIN_BOOKING_ADVANCE_HOURS} hours') AS too_soon`,
         [slotStartTime.toISOString()]
       );
@@ -309,7 +316,7 @@ async function validateBookingEligibility(
     // Check 3: student_entitlements (optional table — skip if missing)
     if (userId) {
       try {
-        const entitlementCheck = await db.query(
+        const entitlementCheck = await query(
           `SELECT total_slots, used_slots, expiry_date, first_booking_date
            FROM student_entitlements 
            WHERE user_id = $1`,
@@ -356,7 +363,7 @@ async function validateBookingEligibility(
     // Check 4: Slot availability (if slotId provided)
     if (slotId) {
       // Get slot details and vehicle-specific booking counts
-      const slotCheck = await db.query(
+      const slotCheck = await query(
         `SELECT 
            s.id,
            s.start_time,
@@ -370,8 +377,9 @@ async function validateBookingEligibility(
       );
       
       // Per-slot capacity from slot_vehicle_capacity when configured
-      const vehicleBookedCount = await vehicleService.getVehicleBookedCount(slotId, vehicleId);
-      const vehicleCapacity = await vehicleService.getEffectiveCapacityForSlot(slotId, vehicleId);
+      log('Checking slot...');
+      const vehicleBookedCount = await vehicleService.getVehicleBookedCount(slotId, vehicleId, client);
+      const vehicleCapacity = await vehicleService.getEffectiveCapacityForSlot(slotId, vehicleId, client);
       
       if (slotCheck.rows.length === 0) {
         return {
@@ -421,15 +429,16 @@ async function validateBookingEligibility(
       }
     }
     
+    log('Checking duplicate booking...');
     // Duplicate booking guard (create only)
     if (slotId && mode === 'create') {
       const duplicateCheck = userId
-        ? await db.query(
+        ? await query(
             `SELECT b.id FROM bookings b
              WHERE b.user_id = $1 AND b.slot_id = $2 AND b.status NOT IN ('cancelled')`,
             [userId, slotId]
           )
-        : await db.query(
+        : await query(
             `SELECT b.id
              FROM bookings b
              JOIN profiles p ON b.user_id = p.id
@@ -447,9 +456,10 @@ async function validateBookingEligibility(
     }
 
     const effectiveVehicleCapacity = slotId
-      ? await vehicleService.getEffectiveCapacityForSlot(slotId, vehicleId)
+      ? await vehicleService.getEffectiveCapacityForSlot(slotId, vehicleId, client)
       : vehicle.max_per_slot;
 
+    log('Booking Validation Completed');
     return {
       eligible: true,
       reason: 'VALID',
@@ -487,8 +497,7 @@ async function validateBookingEligibility(
       error: error.message
     };
   }
-  // PHASE 5: Fix LB-003 - Remove client.release() as this service uses db.query() directly, not a transaction client
-  // No client cleanup needed here since we're not using a transaction client
+  // Uses optional transaction client via options.client; never releases the client here.
 }
 
 /**

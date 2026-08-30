@@ -5,9 +5,14 @@ require('dotenv').config();
 let pool;
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
-// Vercel serverless: keep pools tiny to avoid exhausting Supabase connection limits.
-const defaultPoolMax = process.env.VERCEL ? '1' : '10';
+// Vercel serverless: keep pools small, but >=2 so a held transaction client
+// does not starve nested pool.query() calls (was max=1 → connect timeout).
+const defaultPoolMax = process.env.VERCEL ? '3' : '10';
 const poolMax = parseInt(process.env.DB_POOL_MAX || defaultPoolMax, 10);
+const connectionTimeoutMillis = parseInt(
+  process.env.DB_CONNECTION_TIMEOUT_MS || (process.env.VERCEL ? '20000' : '10000'),
+  10
+);
 
 if (process.env.DATABASE_URL) {
   // Use connection string if available (Supabase / Neon / managed Postgres)
@@ -21,7 +26,7 @@ if (process.env.DATABASE_URL) {
     ssl: sslConfig,
     max: poolMax,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis,
   });
   if (isDevelopment) {
     console.log('Database: Connected using DATABASE_URL');
@@ -39,7 +44,7 @@ if (process.env.DATABASE_URL) {
       : (process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false),
     max: poolMax,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis,
   };
 
   // Log configuration (without password) for debugging in development only

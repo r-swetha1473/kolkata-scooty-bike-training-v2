@@ -5,11 +5,11 @@
 .bg-soft { background: var(--color-bg); }
 
 .page-hero .xp-eyebrow.light {
-  color: rgba(96, 165, 250, 1);
+  color: var(--color-primary);
 }
 
 .xp-cta-band {
-  background: linear-gradient(135deg, var(--color-dark) 0%, #1E3A8A 100%);
+  background: var(--ks-gradient-cta);
   text-align: center;
 }
 

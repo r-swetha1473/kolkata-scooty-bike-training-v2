@@ -5,6 +5,7 @@ const db = require('../db');
 const auditService = require('./audit.service');
 const { logActivity } = require('./activity.service');
 const { EVENT_TYPES, logBookingEvent } = require('./bookingEvent.service');
+const cloudinaryService = require('./cloudinary.service');
 
 // Vercel / serverless: only /tmp (or os.tmpdir) is writable.
 const UPLOAD_ROOT = process.env.UPLOAD_DIR
@@ -106,8 +107,35 @@ async function createPaymentForBooking(
   return payment;
 }
 
-/** Persist an uploaded receipt file and return relative storage paths. */
-function persistReceiptFile(paymentId, file) {
+function isRemoteReceiptUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+}
+
+function shouldUseCloudinaryReceipts() {
+  // Prefer Cloudinary whenever configured (required on Vercel; durable storage).
+  if (process.env.RECEIPT_STORAGE === 'local') return false;
+  if (process.env.VERCEL || process.env.REQUIRE_CLOUDINARY === '1') return true;
+  return cloudinaryService.getConfigStatus().ok;
+}
+
+/**
+ * Persist an uploaded receipt. On Cloudinary: stores secure_url in receipt_path.
+ * Local fallback (dev only): relative path under uploads/receipts.
+ */
+async function persistReceiptFile(paymentId, file) {
+  if (!file?.path && !file?.buffer) return null;
+
+  if (shouldUseCloudinaryReceipts()) {
+    const uploaded = await cloudinaryService.uploadReceipt(file, { folder: 'receipts' });
+    return {
+      relativePath: uploaded.secure_url,
+      mime: file.mimetype || null,
+      originalName: file.originalname || null,
+      storage: 'cloudinary',
+      publicId: uploaded.public_id
+    };
+  }
+
   if (!file?.path) return null;
   ensureReceiptDir();
   const ext = path.extname(file.originalname || '').toLowerCase() || '.bin';
@@ -117,7 +145,8 @@ function persistReceiptFile(paymentId, file) {
   return {
     relativePath: path.join('receipts', safeName).replace(/\\/g, '/'),
     mime: file.mimetype || null,
-    originalName: file.originalname || null
+    originalName: file.originalname || null,
+    storage: 'local'
   };
 }
 
@@ -226,12 +255,13 @@ async function submitReceipt({ paymentId, userId, referenceNumber, file, asAdmin
     throw err;
   }
 
-  ensureReceiptDir();
-  const ext = path.extname(file.originalname || '').toLowerCase() || '.bin';
-  const safeName = `${paymentId}_${Date.now()}${ext}`;
-  const dest = path.join(RECEIPT_DIR, safeName);
-  fs.renameSync(file.path, dest);
-  const relativePath = path.join('receipts', safeName).replace(/\\/g, '/');
+  const stored = await persistReceiptFile(paymentId, file);
+  if (!stored?.relativePath) {
+    const err = new Error('Failed to store receipt');
+    err.status = 500;
+    err.errorCode = 'RECEIPT_STORE_FAILED';
+    throw err;
+  }
 
   const nextStatus = asAdmin ? payment.status === 'verified' ? 'verified' : 'pending_verification' : 'pending_verification';
 
@@ -249,9 +279,9 @@ async function submitReceipt({ paymentId, userId, referenceNumber, file, asAdmin
     [
       paymentId,
       referenceNumber || null,
-      relativePath,
-      file.mimetype || null,
-      file.originalname || null,
+      stored.relativePath,
+      stored.mime || file.mimetype || null,
+      stored.originalName || file.originalname || null,
       nextStatus
     ]
   );
@@ -486,7 +516,7 @@ async function expireUnpaidBookings(expireHours = 12) {
 }
 
 function resolveReceiptAbsolutePath(relativePath) {
-  if (!relativePath) return null;
+  if (!relativePath || isRemoteReceiptUrl(relativePath)) return null;
   const abs = path.join(UPLOAD_ROOT, relativePath);
   if (!abs.startsWith(UPLOAD_ROOT)) return null;
   return abs;
@@ -506,6 +536,8 @@ module.exports = {
   rejectPayment,
   expireUnpaidBookings,
   resolveReceiptAbsolutePath,
+  isRemoteReceiptUrl,
+  shouldUseCloudinaryReceipts,
   mapOfflinePaymentStatus,
   normalizePaymentMethod
 };

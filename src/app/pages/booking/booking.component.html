@@ -82,7 +82,7 @@
 
           </div>
 
-          <div *ngIf="selectedDate && stepIndex >= 2">
+          <div *ngIf="selectedDate && step !== 'branch'">
 
             <dt>Date</dt>
 
@@ -146,92 +146,6 @@
 
 
 
-      <div class="panel step-panel" *ngIf="!loading && step==='course'">
-
-        <header class="step-head">
-
-          <h2>Choose a course</h2>
-
-          <p>Pick the program that matches your skill level.</p>
-
-        </header>
-
-        <div class="card-grid" *ngIf="courses.length; else emptyCourses">
-
-          <article
-
-            class="choice-card course-card-rich"
-
-            *ngFor="let c of courses"
-
-            (click)="selectCourse(c)"
-
-            (keyup.enter)="selectCourse(c)"
-
-            tabindex="0"
-
-            role="button"
-
-            [class.selected]="selectedCourse?.id === c.id"
-
-            [attr.aria-pressed]="selectedCourse?.id === c.id">
-
-            <div class="card-icon" aria-hidden="true">
-
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-
-              </svg>
-
-            </div>
-
-            <div class="card-body">
-
-              <h3>{{ c.name }}</h3>
-              <p class="price">{{ c.price_label }}</p>
-              <p class="tagline" *ngIf="c.tagline">{{ c.tagline }}</p>
-              <p class="desc">{{ c.description }}</p>
-              <ul class="mini-features" *ngIf="c.features?.length">
-                <li *ngFor="let f of c.features | slice:0:3">{{ f }}</li>
-              </ul>
-
-              <div class="card-meta-row">
-
-                <span class="meta-pill" *ngIf="c.duration_label">{{ c.duration_label }}</span>
-
-                <span class="meta-pill meta-pill-muted">Online booking</span>
-
-              </div>
-
-            </div>
-
-            <span class="card-check" *ngIf="selectedCourse?.id === c.id" aria-hidden="true">
-
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-
-                <polyline points="20 6 9 17 4 12"></polyline>
-
-              </svg>
-
-            </span>
-
-          </article>
-
-        </div>
-
-        <ng-template #emptyCourses>
-
-          <div class="ks-empty">No courses available right now.</div>
-
-        </ng-template>
-
-      </div>
-
-
-
       <div class="panel step-panel" *ngIf="!loading && step==='branch'">
 
         <header class="step-head">
@@ -239,6 +153,8 @@
           <h2>Choose a branch</h2>
 
           <p *ngIf="selectedCourse">For <strong>{{ selectedCourse.name }}</strong></p>
+
+          <p *ngIf="!selectedCourse">Select where you want to train.</p>
 
         </header>
 
@@ -321,12 +237,6 @@
           <div class="ks-empty">No branches available.</div>
 
         </ng-template>
-
-        <div class="step-actions">
-
-          <button type="button" class="ks-btn ks-btn-ghost" (click)="go('course')">Back</button>
-
-        </div>
 
       </div>
 

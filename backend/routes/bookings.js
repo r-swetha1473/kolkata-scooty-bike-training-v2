@@ -6,7 +6,7 @@ const emailService = require('../services/email.service');
 const whatsappService = require('../services/whatsapp.service');
 const { validateBookingCreation } = require('../validators');
 const config = require('../app.config');
-const { getBookingRules } = require('../config/app.config');
+const { getBookingRulesSync } = require('../config/app.config');
 const bookingRulesSvc = require('../services/bookingRules.service');
 const { validateBookingEligibility, validateCancellationEligibility } = require('../services/bookingValidation.service');
 const vehicleService = require('../services/vehicle.service');
@@ -62,7 +62,15 @@ router.post(
   logPostBookingRequest,
   validateBookingCreation,
   async (req, res, next) => {
-  const client = await db.getClient();
+  let client;
+  try {
+    client = await db.getClient();
+  } catch (acquireErr) {
+    acquireErr.status = 503;
+    acquireErr.errorCode = 'DB_CONNECTION_TIMEOUT';
+    acquireErr.message = acquireErr.message || 'timeout exceeded when trying to connect';
+    return next(acquireErr);
+  }
 
   try {
     if (!req.user || !req.user.id) {
@@ -72,6 +80,7 @@ router.post(
       throw authError;
     }
 
+    console.log('[Bookings][POST] Booking create started');
     await client.query('BEGIN');
 
     // DEPRECATED Phase 3: student_recognition / student_entitlements no longer gate online booking.
@@ -85,8 +94,78 @@ router.post(
       vehicle_id: clientVehicleId,
       branch_id: clientBranchId,
       course_id: clientCourseId,
-      coupon_code: clientCouponCode
+      coupon_code: clientCouponCode,
+      idempotency_key: clientIdempotencyKey
     } = req.body;
+
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let idempotencyKey =
+      clientIdempotencyKey && String(clientIdempotencyKey).trim()
+        ? String(clientIdempotencyKey).trim()
+        : null;
+    if (idempotencyKey && !UUID_RE.test(idempotencyKey)) {
+      const err = new Error('idempotency_key must be a valid UUID');
+      err.status = 400;
+      err.errorCode = 'INVALID_IDEMPOTENCY_KEY';
+      throw err;
+    }
+
+    // Claim key first (same txn as create). Conflict → replay existing booking for this user.
+    if (idempotencyKey) {
+      const claim = await client.query(
+        `INSERT INTO booking_idempotency_keys (idempotency_key, user_id, booking_id)
+         VALUES ($1, $2, NULL)
+         ON CONFLICT (idempotency_key) DO NOTHING
+         RETURNING idempotency_key`,
+        [idempotencyKey, req.user.id]
+      );
+
+      if (!claim.rows[0]) {
+        const prior = await client.query(
+          `SELECT booking_id, user_id FROM booking_idempotency_keys
+           WHERE idempotency_key = $1`,
+          [idempotencyKey]
+        );
+        const row = prior.rows[0];
+        if (!row || String(row.user_id) !== String(req.user.id)) {
+          const forbidden = new Error('idempotency_key already used');
+          forbidden.status = 409;
+          forbidden.errorCode = 'IDEMPOTENCY_CONFLICT';
+          throw forbidden;
+        }
+        if (!row.booking_id) {
+          const conflict = new Error(
+            'A booking with this idempotency key is already in progress. Please wait a moment and try again.'
+          );
+          conflict.status = 409;
+          conflict.errorCode = 'IDEMPOTENCY_IN_PROGRESS';
+          throw conflict;
+        }
+        const bookingRes = await client.query(`SELECT * FROM bookings WHERE id = $1`, [
+          row.booking_id
+        ]);
+        const existingBooking = bookingRes.rows[0];
+        if (!existingBooking) {
+          const err = new Error('Idempotent booking missing');
+          err.status = 409;
+          err.errorCode = 'IDEMPOTENCY_STALE';
+          throw err;
+        }
+        const payRow = await client.query(
+          `SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [existingBooking.id]
+        );
+        existingBooking.payment = payRow.rows[0] || null;
+        await client.query('COMMIT');
+        console.log('[Bookings][POST] Idempotent replay', {
+          user_id: req.user.id,
+          booking_id: existingBooking.id,
+          idempotency_key: idempotencyKey
+        });
+        return res.status(200).json(existingBooking);
+      }
+    }
 
     if (!slot_id) {
       const error = new Error('slot_id is required');
@@ -262,7 +341,8 @@ router.post(
       }
       const earlyVehicleCheck = await vehicleService.checkVehicleAvailability(
         slot_id,
-        chosenVehicleId
+        chosenVehicleId,
+        client
       );
       if (!earlyVehicleCheck.available) {
         const err = new Error(
@@ -335,7 +415,8 @@ router.post(
       vehicle_id,
       slot_id,
       req.user.id,
-      trainer_id
+      trainer_id,
+      { client, mode: 'create' }
     );
 
     if (!validationResult.eligible) {
@@ -345,20 +426,21 @@ router.post(
       throw err;
     }
 
-    // Get vehicle details dynamically
-    const vehicle = await vehicleService.getVehicleById(vehicle_id);
+    // Get vehicle details dynamically (same transaction client)
+    const vehicle = await vehicleService.getVehicleById(vehicle_id, client);
     if (!vehicle || !vehicle.is_active) {
       throw new Error('Invalid or inactive vehicle selected');
     }
 
-    // Check vehicle capacity dynamically
-    const vehicleAvailability = await vehicleService.checkVehicleAvailability(slot_id, vehicle_id);
+    // Check vehicle capacity dynamically (same transaction client)
+    const vehicleAvailability = await vehicleService.checkVehicleAvailability(slot_id, vehicle_id, client);
     if (!vehicleAvailability.available) {
       throw new Error(`All ${vehicle.name} slots are full for this time slot (${vehicleAvailability.booked}/${vehicleAvailability.capacity} booked)`);
     }
 
     const bookingReference = await generateBookingReference(client);
-    const rules = await getBookingRules();
+    // Use sync rules cache — avoid nested pool.query while transaction client is held
+    const rules = getBookingRulesSync();
     const bookingWindowHours = rules.bookingWindowHours;
     const minAdvanceHours = rules.minAdvanceHours;
 
@@ -558,6 +640,15 @@ router.post(
       };
     }
 
+    if (idempotencyKey) {
+      await client.query(
+        `UPDATE booking_idempotency_keys
+         SET booking_id = $1
+         WHERE idempotency_key = $2 AND user_id = $3`,
+        [booking.id, idempotencyKey, req.user.id]
+      );
+    }
+
     await client.query('COMMIT');
 
     if (branch_id) invalidateCacheForBranch(branch_id);
@@ -691,6 +782,18 @@ router.post(
       }
     }
 
+    // Pool / connect timeouts are infrastructure — not booking validation failures.
+    const msg = String(error.message || '');
+    if (
+      /timeout exceeded when trying to connect/i.test(msg) ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ECONNREFUSED'
+    ) {
+      error.status = 503;
+      error.errorCode = 'DB_CONNECTION_TIMEOUT';
+      return next(error);
+    }
+
     // Convert common booking business validation errors to 400 instead of generic 500.
     if (!error.status) {
       error.status = 400;
@@ -699,7 +802,7 @@ router.post(
     
     next(error);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

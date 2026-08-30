@@ -21,11 +21,22 @@ function normalizeBookingCreateBody(req, res, next) {
   if (b.slot_id == null && b.slotId != null) b.slot_id = b.slotId;
   if (b.trainer_id == null && b.trainerId != null) b.trainer_id = b.trainerId;
   if (b.vehicle_id == null && b.vehicleId != null) b.vehicle_id = b.vehicleId;
+  if (b.idempotency_key == null && b.idempotencyKey != null) b.idempotency_key = b.idempotencyKey;
 
-  for (const key of ['slot_id', 'trainer_id', 'vehicle_id']) {
+  for (const key of ['slot_id', 'trainer_id', 'vehicle_id', 'idempotency_key']) {
     const v = b[key];
     if (v === undefined || v === null) continue;
     b[key] = String(v).trim();
+  }
+
+  // Prefer Idempotency-Key header when body omits the field.
+  if (!b.idempotency_key && req.headers) {
+    const hdr =
+      req.headers['idempotency-key'] ||
+      req.headers['Idempotency-Key'];
+    if (hdr != null && String(hdr).trim()) {
+      b.idempotency_key = String(hdr).trim();
+    }
   }
 
   if (b.phone != null && b.phone !== '') {

@@ -101,4 +101,51 @@ export class PaymentService {
   receiptUrl(id: string): string {
     return `${this.apiUrl}/payments/${id}/receipt-file`;
   }
+
+  /** Open receipt in a new tab (Cloudinary HTTPS URL or authenticated API stream). */
+  async openReceipt(payment: Pick<Payment, 'id' | 'receipt_path'>): Promise<void> {
+    if (!payment?.receipt_path) {
+      throw new Error('No receipt uploaded for this payment');
+    }
+
+    // Durable Cloudinary (or other remote) URL stored directly on the payment row
+    if (/^https?:\/\//i.test(payment.receipt_path)) {
+      window.open(payment.receipt_path, '_blank', 'noopener');
+      return;
+    }
+
+    const token = getAuthToken();
+    const res = await fetch(this.receiptUrl(payment.id), {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Accept: 'application/json, */*'
+      }
+    });
+
+    if (!res.ok) {
+      let message = 'Could not open receipt';
+      try {
+        const errBody = await res.json();
+        if (errBody?.message) message = errBody.message;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = (await res.json()) as { url?: string };
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener');
+        return;
+      }
+      throw new Error('Receipt URL missing from server response');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 }

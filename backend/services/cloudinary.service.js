@@ -18,8 +18,16 @@ const CLOUDINARY_FOLDERS = Object.freeze({
   branches: 'branches',
   settings: 'settings',
   trainers: 'trainers',
-  vehicles: 'vehicles'
+  vehicles: 'vehicles',
+  receipts: 'receipts'
 });
+
+const RECEIPT_ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf'
+]);
 
 function folderPath(key) {
   const sub = CLOUDINARY_FOLDERS[key] || key || 'misc';
@@ -285,6 +293,101 @@ async function uploadImage(file, options = {}) {
 }
 
 /**
+ * Upload a payment receipt (JPEG/PNG/WebP/PDF) to Cloudinary.
+ * Uses resource_type=auto so PDFs work alongside images.
+ */
+async function uploadReceipt(file, options = {}) {
+  ensureConfigured();
+
+  if (!file) {
+    const err = new Error('Receipt file is required');
+    err.status = 400;
+    err.errorCode = 'RECEIPT_REQUIRED';
+    throw err;
+  }
+
+  const mime = file.mimetype || '';
+  if (!RECEIPT_ALLOWED_MIME.has(mime)) {
+    unlinkQuiet(file.path);
+    const err = new Error('Only JPEG, PNG, WebP, or PDF receipts are allowed');
+    err.status = 400;
+    err.errorCode = 'INVALID_RECEIPT_TYPE';
+    throw err;
+  }
+
+  const maxBytes = options.maxBytes || maxBytesFor('RECEIPT_MAX_BYTES');
+  const size = file.size || (file.buffer ? file.buffer.length : 0);
+  if (size && size > maxBytes) {
+    unlinkQuiet(file.path);
+    const err = new Error(
+      `Receipt too large. Maximum size is ${Math.round(maxBytes / (1024 * 1024))}MB`
+    );
+    err.status = 400;
+    err.errorCode = 'RECEIPT_TOO_LARGE';
+    throw err;
+  }
+
+  const folder = folderPath(options.folder || 'receipts');
+  console.log(`[cloudinary] receipt upload started folder=${folder} mime=${mime} size=${size || 'unknown'}`);
+
+  try {
+    let result;
+    const uploadOpts = {
+      folder,
+      resource_type: 'auto',
+      overwrite: false,
+      unique_filename: true,
+      use_filename: false,
+      type: 'upload'
+    };
+    if (file.buffer) {
+      result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(uploadOpts, (err, res) =>
+          err ? reject(err) : resolve(res)
+        );
+        stream.end(file.buffer);
+      });
+    } else if (file.path) {
+      result = await cloudinary.uploader.upload(file.path, uploadOpts);
+    } else {
+      const err = new Error('Invalid receipt file payload');
+      err.status = 400;
+      err.errorCode = 'RECEIPT_REQUIRED';
+      throw err;
+    }
+
+    unlinkQuiet(file.path);
+
+    if (!result?.secure_url) {
+      const err = new Error('Cloudinary receipt upload did not return secure_url');
+      err.status = 502;
+      err.errorCode = 'CLOUDINARY_UPLOAD_FAILED';
+      throw err;
+    }
+
+    console.log(
+      `[cloudinary] receipt upload completed public_id=${result.public_id} url=${result.secure_url}`
+    );
+
+    return {
+      secure_url: result.secure_url,
+      public_id: result.public_id,
+      bytes: result.bytes,
+      format: result.format,
+      resource_type: result.resource_type
+    };
+  } catch (err) {
+    unlinkQuiet(file.path);
+    console.error('[cloudinary] receipt upload failed:', err?.message || err);
+    if (!err.status) {
+      err.status = 502;
+      err.errorCode = err.errorCode || 'CLOUDINARY_UPLOAD_FAILED';
+    }
+    throw err;
+  }
+}
+
+/**
  * Delete a Cloudinary asset by secure_url or public_id.
  * Safe no-op for non-Cloudinary URLs.
  */
@@ -382,6 +485,8 @@ module.exports = {
   isForbiddenLocalImageUrl,
   extractPublicId,
   uploadImage,
+  uploadReceipt,
+  RECEIPT_ALLOWED_MIME,
   destroyImage,
   replaceImage,
   resolveUpdatedImageUrl,

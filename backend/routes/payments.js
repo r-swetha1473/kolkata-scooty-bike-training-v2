@@ -152,7 +152,9 @@ router.post(
 router.get('/:id/receipt-file', authenticate, async (req, res, next) => {
   try {
     const payment = await paymentService.getPaymentById(req.params.id);
-    if (!payment?.receipt_path) return jsonError(res, 404, 'Receipt not found', 'NOT_FOUND');
+    if (!payment?.receipt_path) {
+      return jsonError(res, 404, 'No receipt uploaded for this payment', 'NOT_FOUND');
+    }
 
     const isOwner = String(payment.user_id) === String(req.user.id);
     const isStaff = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
@@ -160,8 +162,30 @@ router.get('/:id/receipt-file', authenticate, async (req, res, next) => {
       return jsonError(res, 403, 'Not allowed to view this receipt', 'FORBIDDEN');
     }
 
+    // Cloudinary (or other HTTPS) receipt — return URL for SPA fetch clients
+    if (paymentService.isRemoteReceiptUrl(payment.receipt_path)) {
+      const wantsJson =
+        String(req.headers.accept || '').includes('application/json') ||
+        req.query.format === 'json';
+      if (wantsJson) {
+        return res.json({
+          url: payment.receipt_path,
+          mime: payment.receipt_mime || null,
+          storage: 'remote'
+        });
+      }
+      return res.redirect(302, payment.receipt_path);
+    }
+
     const abs = paymentService.resolveReceiptAbsolutePath(payment.receipt_path);
-    if (!abs || !fs.existsSync(abs)) return jsonError(res, 404, 'Receipt file missing', 'NOT_FOUND');
+    if (!abs || !fs.existsSync(abs)) {
+      return jsonError(
+        res,
+        404,
+        'Receipt file is no longer available. Ask the customer to re-upload their payment proof.',
+        'RECEIPT_FILE_MISSING'
+      );
+    }
     res.setHeader('Content-Type', payment.receipt_mime || 'application/octet-stream');
     res.setHeader(
       'Content-Disposition',

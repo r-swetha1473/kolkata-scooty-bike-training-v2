@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { getAuthToken } from '../../../utils/auth-token.storage';
 import { Branch, BranchService } from '../../../services/branch.service';
 import { Payment, PaymentService } from '../../../services/payment.service';
 import { ToastService } from '../../../services/toast.service';
@@ -393,14 +392,7 @@ export class AdminPaymentsComponent implements OnInit {
   }
   async openReceipt(p: Payment) {
     try {
-      const token = getAuthToken();
-      const res = await fetch(this.paymentsApi.receiptUrl(p.id), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (!res.ok) throw new Error('Could not open receipt');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener');
+      await this.paymentsApi.openReceipt(p);
     } catch (e: any) {
       this.toast.error(e?.message || 'Receipt unavailable');
     }

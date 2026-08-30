@@ -580,7 +580,7 @@ export class MyBookingsComponent implements OnInit {
       notes: b.notes || '',
       start_time: b.start_time || b.slot_time || b.booking_datetime,
       end_time: b.end_time,
-      slot_date: b.slot_date,
+      slot_date: extractDateFromDateTime(b.slot_date) || extractDateFromDateTime(b.start_time) || b.slot_date,
       formatted_slot_time: b.formatted_slot_time,
       trainer_name: b.trainer_name || 'Trainer',
       trainer_avatar: b.trainer_avatar,
@@ -637,13 +637,17 @@ export class MyBookingsComponent implements OnInit {
   }
 
   formatDateOnly(b: BookingRow): string {
-    const iso = b.start_time;
-    const date = b.slot_date || extractDateFromDateTime(iso);
+    // slot_date from API may be a full ISO timestamp (pg date → JSON); always normalize first.
+    const date =
+      extractDateFromDateTime(b.slot_date) ||
+      extractDateFromDateTime(b.start_time);
     if (!date) return '—';
     const [y, m, d] = date.split('-').map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return '—';
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dateObj = new Date(Date.UTC(y, m - 1, d));
+    if (Number.isNaN(dateObj.getTime())) return '—';
     return `${days[dateObj.getUTCDay()]}, ${months[m - 1]} ${d}, ${y}`;
   }
 

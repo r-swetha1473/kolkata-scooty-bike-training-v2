@@ -69,17 +69,17 @@ import { MotionService } from '../../services/motion.service';
   `,
   styles: [`
     .gallery-page { background: var(--color-card); }
-    .page-hero .xp-eyebrow.light { color: rgba(96, 165, 250, 1); }
+    .page-hero .xp-eyebrow.light { color: var(--color-primary, #2563EB); }
     .hero-title {
       font-size: clamp(1.85rem, 4vw, 2.75rem);
       font-weight: 800;
-      color: #fff;
+      color: #0F172A;
       margin: 0 0 0.75rem;
     }
     .hero-subtitle {
       margin: 0;
       font-size: 1.1rem;
-      color: rgba(255, 255, 255, 0.78);
+      color: #475569;
       max-width: 36rem;
     }
     .gallery-filters {

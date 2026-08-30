@@ -1,38 +1,47 @@
 /**
  * Vehicle Service
- * Provides dynamic vehicle management without hardcoded types
+ * Provides dynamic vehicle management without hardcoded types.
+ * Optional `client` uses an existing transaction connection (avoids pool starvation).
  */
 
 const db = require('../db');
+
+function queryWith(client) {
+  return client
+    ? (text, params) => client.query(text, params)
+    : (text, params) => db.query(text, params);
+}
 
 /**
  * Get all active vehicles
  * @returns {Promise<Array>} Array of vehicle objects
  */
-async function getActiveVehicles(branchId = null) {
+async function getActiveVehicles(branchId = null, client = null) {
+  const q = queryWith(client);
   if (branchId) {
-    const result = await db.query(
+    const result = await q(
       `SELECT id, name, max_per_slot, is_active, branch_id FROM vehicles
        WHERE is_active = true AND branch_id = $1 ORDER BY name`,
       [branchId]
     );
     return result.rows;
   }
-  const result = await db.query(
+  const result = await q(
     'SELECT id, name, max_per_slot, is_active, branch_id FROM vehicles WHERE is_active = true ORDER BY name'
   );
   return result.rows;
 }
 
-async function getActiveVehicleCount(branchId = null) {
+async function getActiveVehicleCount(branchId = null, client = null) {
+  const q = queryWith(client);
   if (branchId) {
-    const result = await db.query(
+    const result = await q(
       'SELECT COUNT(*)::int AS count FROM vehicles WHERE is_active = true AND branch_id = $1',
       [branchId]
     );
     return parseInt(result.rows[0]?.count || 0, 10);
   }
-  const result = await db.query(
+  const result = await q(
     'SELECT COUNT(*)::int AS count FROM vehicles WHERE is_active = true'
   );
   return parseInt(result.rows[0]?.count || 0, 10);
@@ -41,10 +50,12 @@ async function getActiveVehicleCount(branchId = null) {
 /**
  * Get vehicle by ID
  * @param {string} vehicleId - Vehicle UUID
+ * @param {object|null} client - Optional pg client from an open transaction
  * @returns {Promise<Object|null>} Vehicle object or null
  */
-async function getVehicleById(vehicleId) {
-  const result = await db.query(
+async function getVehicleById(vehicleId, client = null) {
+  const q = queryWith(client);
+  const result = await q(
     'SELECT id, name, max_per_slot, is_active FROM vehicles WHERE id = $1',
     [vehicleId]
   );
@@ -57,8 +68,8 @@ async function getVehicleById(vehicleId) {
  * @param {string} vehicleId - Vehicle UUID
  * @returns {Promise<number>} Max capacity per slot for this vehicle
  */
-async function getVehicleCapacity(vehicleId) {
-  const vehicle = await getVehicleById(vehicleId);
+async function getVehicleCapacity(vehicleId, client = null) {
+  const vehicle = await getVehicleById(vehicleId, client);
   return vehicle ? vehicle.max_per_slot : 0;
 }
 
@@ -66,10 +77,12 @@ async function getVehicleCapacity(vehicleId) {
  * Get booked count for a vehicle in a slot
  * @param {string} slotId - Slot UUID
  * @param {string} vehicleId - Vehicle UUID
+ * @param {object|null} client - Optional pg client from an open transaction
  * @returns {Promise<number>} Number of bookings for this vehicle in this slot
  */
-async function getVehicleBookedCount(slotId, vehicleId) {
-  const result = await db.query(
+async function getVehicleBookedCount(slotId, vehicleId, client = null) {
+  const q = queryWith(client);
+  const result = await q(
     `SELECT COUNT(*) as count 
      FROM bookings 
      WHERE slot_id = $1 AND vehicle_id = $2 AND status NOT IN ('cancelled')`,
@@ -81,14 +94,15 @@ async function getVehicleBookedCount(slotId, vehicleId) {
 /**
  * Per-slot capacity from slot_vehicle_capacity when present, else vehicles.max_per_slot
  */
-async function getEffectiveCapacityForSlot(slotId, vehicleId) {
-  const vehicle = await getVehicleById(vehicleId);
+async function getEffectiveCapacityForSlot(slotId, vehicleId, client = null) {
+  const q = queryWith(client);
+  const vehicle = await getVehicleById(vehicleId, client);
   if (!vehicle || !vehicle.is_active) {
     return 0;
   }
 
   try {
-    const svc = await db.query(
+    const svc = await q(
       `SELECT capacity FROM slot_vehicle_capacity 
        WHERE slot_id = $1 AND vehicle_id = $2`,
       [slotId, vehicleId]
@@ -109,16 +123,17 @@ async function getEffectiveCapacityForSlot(slotId, vehicleId) {
  * Check if vehicle has available capacity in a slot
  * @param {string} slotId - Slot UUID
  * @param {string} vehicleId - Vehicle UUID
+ * @param {object|null} client - Optional pg client from an open transaction
  * @returns {Promise<{available: boolean, capacity: number, booked: number}>}
  */
-async function checkVehicleAvailability(slotId, vehicleId) {
-  const vehicle = await getVehicleById(vehicleId);
+async function checkVehicleAvailability(slotId, vehicleId, client = null) {
+  const vehicle = await getVehicleById(vehicleId, client);
   if (!vehicle || !vehicle.is_active) {
     return { available: false, capacity: 0, booked: 0 };
   }
 
-  const booked = await getVehicleBookedCount(slotId, vehicleId);
-  const capacity = await getEffectiveCapacityForSlot(slotId, vehicleId);
+  const booked = await getVehicleBookedCount(slotId, vehicleId, client);
+  const capacity = await getEffectiveCapacityForSlot(slotId, vehicleId, client);
 
   return {
     available: booked < capacity,

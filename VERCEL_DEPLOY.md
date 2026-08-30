@@ -81,7 +81,7 @@ CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 REQUIRE_CLOUDINARY=1
 COOKIE_SECURE=true
-DB_POOL_MAX=1
+DB_POOL_MAX=3
 ```
 
 ### If using Google OAuth
@@ -188,7 +188,7 @@ cd backend && node -e "require('dotenv').config(); const db=require('./db'); db.
 ### Issues fixed (code)
 
 - Express could not run on Vercel (`app.listen` + crons) → exported app; listen/crons only when `!VERCEL`
-- Serverless DB connection pressure → default `DB_POOL_MAX=1` on Vercel
+- Serverless DB connection pressure → default `DB_POOL_MAX=3` on Vercel
 - Cross-site FE/API cookies → session `sameSite: 'none'` in production
 - CORS for v2 frontend host suffix
 - Placeholder production FE/API URLs in `environment.prod.ts`

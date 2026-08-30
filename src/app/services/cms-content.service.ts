@@ -245,13 +245,21 @@ export class CmsContentService {
         ctaQuery[key] = value;
       });
     }
+    // Hardening: course Book Now must always carry ?course=<slug> so booking can skip Select Course.
+    const ctaPath = pathPart || '/booking';
+    if (ctaPath === '/booking' || ctaPath.endsWith('/booking')) {
+      if (!ctaQuery['course'] && c.slug) {
+        ctaQuery['course'] = c.slug;
+      }
+    }
 
     // Single source of truth: primary Admin image_url (never prefer stale thumbnails).
     const image_url = resolveMediaUrl(primaryCourseImageUrl(c), '', this.coursesApi.apiBaseUrl);
     const price_label = displayCoursePrice(c);
     const duration_label = c.duration_label || '';
     const cta_text = c.cta_text || 'Book now';
-    const cta_link = rawLink;
+    const qs = new URLSearchParams(ctaQuery).toString();
+    const cta_link = qs ? `${ctaPath}?${qs}` : ctaPath;
 
     return {
       id: c.id,
@@ -278,7 +286,7 @@ export class CmsContentService {
       cta_text,
       ctaText: cta_text,
       cta_link,
-      ctaPath: pathPart || '/booking',
+      ctaPath,
       ctaQuery
     };
   }

@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Payment, PaymentService } from '../../services/payment.service';
 import { ToastService } from '../../services/toast.service';
-import { getAuthToken } from '../../utils/auth-token.storage';
-
 type StatusFilter = 'all' | Payment['status'];
 
 @Component({
@@ -385,17 +383,9 @@ export class MyPaymentsComponent implements OnInit {
   async downloadReceipt(payment: Payment) {
     this.downloadingId = payment.id;
     try {
-      const token = getAuthToken();
-      const res = await fetch(this.paymentsApi.receiptUrl(payment.id), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      this.toast.error('Could not open receipt');
+      await this.paymentsApi.openReceipt(payment);
+    } catch (e: any) {
+      this.toast.error(e?.message || 'Could not open receipt');
     } finally {
       this.downloadingId = '';
     }

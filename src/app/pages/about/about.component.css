@@ -59,8 +59,15 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 85% 20%, rgba(232, 163, 23, 0.18), transparent 55%),
-    radial-gradient(ellipse 50% 60% at 10% 90%, rgba(27, 79, 114, 0.45), transparent 50%);
+    radial-gradient(circle at top, rgba(0, 102, 177, 0.1), transparent 70%),
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 102, 177, 0.06) 20%,
+      rgba(0, 102, 177, 0.12) 50%,
+      rgba(0, 102, 177, 0.06) 80%,
+      transparent 100%
+    );
   pointer-events: none;
 }
 
@@ -79,12 +86,12 @@
   margin-bottom: 16px;
   line-height: 1.15;
   letter-spacing: normal;
-  color: #fff;
+  color: var(--color-ink);
 }
 
 .hero-subtitle {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--color-muted);
   line-height: 1.65;
   max-width: 36rem;
   margin: 0;
@@ -339,7 +346,7 @@
 }
 
 .xp-cta-band {
-  background: linear-gradient(135deg, var(--color-dark) 0%, #1E3A8A 100%);
+  background: var(--ks-gradient-cta);
   text-align: center;
 }
 

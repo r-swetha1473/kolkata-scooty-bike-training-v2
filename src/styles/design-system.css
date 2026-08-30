@@ -41,9 +41,29 @@
   --ks-surface-3: #F1F5F9;
   --ks-overlay: var(--color-overlay);
 
-  --ks-gradient-hero: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%);
-  --ks-gradient-band: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
-  --ks-gradient-soft: linear-gradient(180deg, var(--color-bg) 0%, var(--color-card) 100%);
+  /* Brighter public surfaces — keep brand blue, avoid large solid dark blocks */
+  --ks-brand-blue: #0066B1;
+  --ks-gradient-hero: linear-gradient(135deg, #ffffff 0%, #f7fbff 45%, #eef5ff 100%);
+  --ks-gradient-band: linear-gradient(
+    135deg,
+    #f8fbff 0%,
+    rgba(0, 102, 177, 0.1) 40%,
+    rgba(37, 99, 235, 0.14) 100%
+  );
+  --ks-gradient-soft: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  --ks-gradient-section: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 102, 177, 0.08) 20%,
+    rgba(0, 102, 177, 0.15) 50%,
+    rgba(0, 102, 177, 0.08) 80%,
+    transparent 100%
+  );
+  --ks-gradient-cta: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #3b82f6 100%);
+  --ks-radial-glow: radial-gradient(circle at top, rgba(0, 102, 177, 0.08), transparent 70%);
+  --ks-glass: rgba(255, 255, 255, 0.72);
+  --ks-glass-border: rgba(37, 99, 235, 0.14);
+  --shadow-soft-blue: 0 10px 30px rgba(0, 102, 177, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
 
   --primary-color: var(--color-primary);
   --secondary-color: var(--color-dark);
@@ -399,16 +419,17 @@ h4, .h4 {
 
 /* ── Cards & surfaces ── */
 .ks-surface, .ks-card, .choice-card, .feature-card, .course-card, .panel, .benefit-card, .card {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
-  transition: border-color var(--dur-med), box-shadow var(--dur-med);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft-blue);
+  transition: border-color var(--dur-med), box-shadow var(--dur-med), transform var(--dur-med);
 }
 
 .ks-card:hover, .choice-card:hover, .feature-card:hover, .course-card:hover {
-  border-color: #CBD5E1;
-  box-shadow: var(--shadow-md);
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 14px 36px rgba(0, 102, 177, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05);
+  transform: translateY(-2px);
 }
 
 /* ── Forms ── */

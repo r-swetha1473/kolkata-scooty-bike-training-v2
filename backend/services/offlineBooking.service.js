@@ -444,7 +444,7 @@ async function createOfflineBooking(adminId, payload) {
       recordedBy: adminId
     });
     if (paymentProofFile) {
-      const stored = paymentService.persistReceiptFile(payment.id, paymentProofFile);
+      const stored = await paymentService.persistReceiptFile(payment.id, paymentProofFile);
       if (stored) {
         receiptPath = stored.relativePath;
         receiptMime = stored.mime;

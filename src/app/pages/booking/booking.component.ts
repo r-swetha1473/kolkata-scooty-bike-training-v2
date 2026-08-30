@@ -23,7 +23,7 @@ import {
 } from '../../utils/date.utils';
 import { getApiErrorMessage } from '../../utils/api-error';
 
-type WizardStep = 'course' | 'branch' | 'date' | 'slot' | 'details' | 'payment' | 'done';
+type WizardStep = 'branch' | 'date' | 'slot' | 'details' | 'payment' | 'done';
 type SlotPeriod = 'morning' | 'afternoon' | 'evening';
 type SlotUiState = 'available' | 'booked' | 'past' | 'disabled' | 'selected';
 /** Calendar / empty-state classification (frontend UX only). */
@@ -79,9 +79,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     'This slot is outside the advance booking window.';
   readonly weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  step: WizardStep = 'course';
+  step: WizardStep = 'branch';
   readonly steps: { id: WizardStep; label: string }[] = [
-    { id: 'course', label: 'Course' },
     { id: 'branch', label: 'Branch' },
     { id: 'date', label: 'Date' },
     { id: 'slot', label: 'Time' },
@@ -250,9 +249,18 @@ export class BookingComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
+    const courseSlug = this.route.snapshot.queryParamMap.get('course')?.trim() || '';
+
+    // Bare /booking (no course) — block before any wizard UI or booking API work.
+    if (!courseSlug) {
+      this.toast.error('Please select a course to start booking');
+      void this.router.navigate(['/courses']);
+      return;
+    }
+
     this.seo.setPage({
       title: 'Book Training',
-      description: 'Choose a course and branch, pick a slot, and complete manual payment for Kolkata scooty and bike training.',
+      description: 'Choose a branch, pick a slot, and complete manual payment for Kolkata scooty and bike training.',
       path: '/booking'
     });
     this.loading = true;
@@ -262,16 +270,25 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.coursesApi.list(true),
         this.branchesApi.list(true)
       ]);
+      // Wizard always starts at Branch (Course step removed permanently).
+      this.step = 'branch';
       const q = this.route.snapshot.queryParamMap;
-      const courseSlug = q.get('course');
       const branchSlug = q.get('branch');
-      if (courseSlug) {
-        this.selectedCourse = this.courses.find((c) => c.slug === courseSlug) || null;
-        if (this.selectedCourse) this.step = 'branch';
+
+      // Preserve course context from ?course=<slug> for course_id on create — no Course UI.
+      this.selectedCourse = this.courses.find((c) => c.slug === courseSlug) || null;
+      if (!this.selectedCourse) {
+        this.toast.error(
+          'We could not load that course. Please choose a course again.'
+        );
+        // Invalid slug — same recovery as bare /booking.
+        void this.router.navigate(['/courses']);
+        return;
       }
+
       if (branchSlug) {
         this.selectedBranch = this.branches.find((b) => b.slug === branchSlug) || null;
-        if (this.selectedCourse && this.selectedBranch) {
+        if (this.selectedBranch) {
           this.step = 'date';
           this.syncCalendarToSelected();
           void this.probeMonthAvailability();
@@ -353,11 +370,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       return `Bookings open up to ${days} day${days === 1 ? '' : 's'} before the training session.`;
     }
     return `Bookings open up to ${h} hours before the training session.`;
-  }
-
-  selectCourse(c: Course) {
-    this.selectedCourse = c;
-    this.step = 'branch';
   }
 
   selectBranch(b: Branch) {
@@ -537,12 +549,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   canNavigate(target: WizardStep): boolean {
-    const order = this.steps.map((s) => s.id);
-    const ti = order.indexOf(target);
-    if (ti < 0) return false;
-    if (target === 'course') return true;
-    if (target === 'branch') return !!this.selectedCourse;
-    if (target === 'date') return !!this.selectedCourse && !!this.selectedBranch;
+    // Course is not a wizard step. Branch is always the first reachable step.
+    if (target === 'branch') return true;
+    if (target === 'date') return !!this.selectedBranch;
     if (target === 'slot') {
       return (
         !!this.selectedBranch &&
@@ -565,7 +574,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   selectSlot(slot: Slot) {
     if (!this.canSelectSlot(slot)) return;
     if (!this.auth.isAuthenticated()) {
-      sessionStorage.setItem('oauth_return_url', '/booking');
+      // Preserve ?course= / ?branch= so course-locked state survives Google OAuth return.
+      sessionStorage.setItem('oauth_return_url', this.bookingReturnUrl());
       this.auth.signInWithGoogle();
       return;
     }
@@ -573,6 +583,19 @@ export class BookingComponent implements OnInit, OnDestroy {
     const opts = this.vehicleOptions(slot);
     this.selectedVehicleId = opts[0]?.vehicle_id || '';
     this.step = 'details';
+  }
+
+  /** Keep course/branch query on auth round-trips so selectedCourse can be restored. */
+  private bookingReturnUrl(): string {
+    const params = new URLSearchParams();
+    const courseSlug =
+      this.selectedCourse?.slug || this.route.snapshot.queryParamMap.get('course');
+    const branchSlug =
+      this.selectedBranch?.slug || this.route.snapshot.queryParamMap.get('branch');
+    if (courseSlug) params.set('course', courseSlug);
+    if (branchSlug) params.set('branch', branchSlug);
+    const qs = params.toString();
+    return qs ? `/booking?${qs}` : '/booking';
   }
 
   canSelectSlot(slot: Slot): boolean {
@@ -737,7 +760,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.couponError = 'Enter a coupon code';
       return;
     }
-    if (!this.selectedCourse) return;
+    if (!this.selectedCourse) {
+      this.toast.error(
+        'A course is required to apply a coupon. Open a course and click Book Now.'
+      );
+      return;
+    }
     const amount = Number(this.selectedCourse.amount_inr) || 0;
     this.couponValidating = true;
     try {
@@ -762,7 +790,21 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   async confirmDetails() {
-    if (!this.selectedSlot || !this.selectedCourse || !this.selectedBranch) return;
+    // Never fail silently — same toast.error convention as phone/vehicle/API errors.
+    if (!this.selectedCourse) {
+      this.handleMissingCourseContext();
+      return;
+    }
+    if (!this.selectedBranch) {
+      this.toast.error('Please select a branch to continue.');
+      this.step = 'branch';
+      return;
+    }
+    if (!this.selectedSlot) {
+      this.toast.error('Please select a time slot to continue.');
+      this.step = this.rawSlots.length || this.slots.length ? 'slot' : 'date';
+      return;
+    }
     if (!/^\d{10}$/.test(this.phone)) {
       this.toast.error('Enter a valid 10-digit mobile number');
       return;
@@ -793,6 +835,26 @@ export class BookingComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  /**
+   * selectedCourse missing at confirm — never call createBooking without course_id.
+   * No Course wizard step: toast + send to Courses (or course detail if slug known).
+   */
+  private handleMissingCourseContext(): void {
+    const courseSlug = this.route.snapshot.queryParamMap.get('course');
+
+    this.toast.error(
+      courseSlug
+        ? 'We lost track of your selected course — please choose it again.'
+        : 'A course is required to complete booking. Open a course and click Book Now.'
+    );
+
+    if (courseSlug) {
+      void this.router.navigate(['/courses', courseSlug]);
+      return;
+    }
+    void this.router.navigate(['/courses']);
   }
 
   async submitPayment() {

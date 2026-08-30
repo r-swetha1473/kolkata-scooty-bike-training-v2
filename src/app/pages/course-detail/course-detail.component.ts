@@ -147,6 +147,14 @@ export class CourseDetailComponent implements OnInit {
         this.ctaQuery[key] = value;
       });
     }
+    // Hardening: always include ?course=<slug> for booking so Select Course can be skipped.
+    if (
+      (this.ctaPath === '/booking' || this.ctaPath.endsWith('/booking')) &&
+      !this.ctaQuery['course'] &&
+      this.course.slug
+    ) {
+      this.ctaQuery['course'] = this.course.slug;
+    }
     this.ctaText = this.course.cta_text || 'Book this course';
 
     this.seo.setPage({
