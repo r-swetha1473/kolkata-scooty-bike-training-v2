@@ -93,6 +93,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   branches: Branch[] = [];
   slots: Slot[] = [];
   selectedCourse: Course | null = null;
+  /** Inline course switcher open state (Branch / Date / Time only). */
+  coursePickerOpen = false;
   selectedBranch: Branch | null = null;
   selectedDate = getKolkataToday();
   selectedSlot: Slot | null = null;
@@ -251,13 +253,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     const courseSlug = this.route.snapshot.queryParamMap.get('course')?.trim() || '';
 
-    // Bare /booking (no course) — block before any wizard UI or booking API work.
-    if (!courseSlug) {
-      this.toast.error('Please select a course to start booking');
-      void this.router.navigate(['/courses']);
-      return;
-    }
-
     this.seo.setPage({
       title: 'Book Training',
       description: 'Choose a branch, pick a slot, and complete manual payment for Kolkata scooty and bike training.',
@@ -270,20 +265,30 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.coursesApi.list(true),
         this.branchesApi.list(true)
       ]);
-      // Wizard always starts at Branch (Course step removed permanently).
+      // Wizard always starts at Branch (no dedicated Course step).
       this.step = 'branch';
       const q = this.route.snapshot.queryParamMap;
       const branchSlug = q.get('branch');
 
-      // Preserve course context from ?course=<slug> for course_id on create — no Course UI.
-      this.selectedCourse = this.courses.find((c) => c.slug === courseSlug) || null;
-      if (!this.selectedCourse) {
-        this.toast.error(
-          'We could not load that course. Please choose a course again.'
-        );
-        // Invalid slug — same recovery as bare /booking.
-        void this.router.navigate(['/courses']);
-        return;
+      if (courseSlug) {
+        // Explicit ?course=<slug> always wins over auto-default.
+        this.selectedCourse = this.courses.find((c) => c.slug === courseSlug) || null;
+        if (!this.selectedCourse) {
+          this.toast.error(
+            'We could not load that course. Please choose a course again.'
+          );
+          void this.router.navigate(['/courses']);
+          return;
+        }
+      } else {
+        // Bare /booking — default to cheapest active course; user can Change in-wizard.
+        this.selectedCourse = this.pickCheapestCourse(this.courses);
+        if (!this.selectedCourse) {
+          this.toast.error('No courses are available to book right now.');
+          void this.router.navigate(['/courses']);
+          return;
+        }
+        this.syncCourseQueryParam(this.selectedCourse.slug);
       }
 
       if (branchSlug) {
@@ -303,6 +308,71 @@ export class BookingComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Change course on Branch / Date / Time; locked from Details onward (before hold). */
+  get canChangeCourse(): boolean {
+    return this.step === 'branch' || this.step === 'date' || this.step === 'slot';
+  }
+
+  /** Active courses sorted cheapest-first (for default + picker display). */
+  get coursesByPriceAsc(): Course[] {
+    return [...this.courses].sort(
+      (a, b) => (Number(a.amount_inr) || 0) - (Number(b.amount_inr) || 0)
+    );
+  }
+
+  private pickCheapestCourse(courses: Course[]): Course | null {
+    if (!courses?.length) return null;
+    return (
+      [...courses].sort(
+        (a, b) => (Number(a.amount_inr) || 0) - (Number(b.amount_inr) || 0)
+      )[0] || null
+    );
+  }
+
+  courseOptionLabel(c: Course): string {
+    const price = c.price_label || (c.amount_inr != null ? `₹${c.amount_inr}` : '');
+    return price ? `${c.name} (${price})` : c.name;
+  }
+
+  toggleCoursePicker() {
+    if (!this.canChangeCourse) return;
+    this.coursePickerOpen = !this.coursePickerOpen;
+  }
+
+  onCourseSelectId(id: string) {
+    const course = this.courses.find((c) => c.id === id);
+    if (course) this.selectCourse(course);
+  }
+
+  /**
+   * Update selectedCourse + fee display. Slots/availability are branch+date based
+   * (not course-scoped), so branch/date/slot are kept.
+   */
+  selectCourse(course: Course) {
+    if (!this.canChangeCourse || !course) return;
+    if (this.selectedCourse?.id === course.id) {
+      this.coursePickerOpen = false;
+      return;
+    }
+    this.selectedCourse = course;
+    this.couponCode = '';
+    this.couponResult = null;
+    this.couponError = '';
+    this.coursePickerOpen = false;
+    this.syncCourseQueryParam(course.slug);
+  }
+
+  /** Keep ?course= in sync for OAuth return / share without dropping other params. */
+  private syncCourseQueryParam(slug: string) {
+    if (!slug) return;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { course: slug },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   ngOnDestroy() {
@@ -762,7 +832,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
     if (!this.selectedCourse) {
       this.toast.error(
-        'A course is required to apply a coupon. Open a course and click Book Now.'
+        'A course is required to apply a coupon.'
       );
       return;
     }
@@ -839,7 +909,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /**
    * selectedCourse missing at confirm — never call createBooking without course_id.
-   * No Course wizard step: toast + send to Courses (or course detail if slug known).
+   * Toast + send to Courses (or course detail if slug known).
    */
   private handleMissingCourseContext(): void {
     const courseSlug = this.route.snapshot.queryParamMap.get('course');
@@ -847,7 +917,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.toast.error(
       courseSlug
         ? 'We lost track of your selected course — please choose it again.'
-        : 'A course is required to complete booking. Open a course and click Book Now.'
+        : 'A course is required to complete booking. Please pick a course and try again.'
     );
 
     if (courseSlug) {
@@ -901,6 +971,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   go(step: WizardStep) {
     if (!this.canNavigate(step)) return;
     this.step = step;
+    if (step === 'details' || step === 'payment' || step === 'done') {
+      this.coursePickerOpen = false;
+    }
     if (step === 'date') {
       this.syncCalendarToSelected();
       void this.probeMonthAvailability();

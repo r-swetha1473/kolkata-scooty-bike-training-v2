@@ -70,7 +70,26 @@
 
             <dt>Course</dt>
 
-            <dd>{{ selectedCourse.name }}</dd>
+            <dd>
+              {{ selectedCourse.name }}
+              <button
+                *ngIf="canChangeCourse"
+                type="button"
+                class="summary-change"
+                (click)="toggleCoursePicker()">
+                {{ coursePickerOpen ? 'Close' : 'Change' }}
+              </button>
+            </dd>
+
+            <div class="course-picker course-picker-aside" *ngIf="coursePickerOpen && canChangeCourse">
+              <label class="sr-only" for="booking-course-select-aside">Choose course</label>
+              <select
+                id="booking-course-select-aside"
+                [ngModel]="selectedCourse.id"
+                (ngModelChange)="onCourseSelectId($event)">
+                <option *ngFor="let c of coursesByPriceAsc" [value]="c.id">{{ courseOptionLabel(c) }}</option>
+              </select>
+            </div>
 
           </div>
 
@@ -152,9 +171,32 @@
 
           <h2>Choose a branch</h2>
 
-          <p *ngIf="selectedCourse">For <strong>{{ selectedCourse.name }}</strong></p>
-
           <p *ngIf="!selectedCourse">Select where you want to train.</p>
+
+          <div class="course-context" *ngIf="selectedCourse">
+            <div class="course-context-row">
+              <span class="course-context-label">
+                Course: <strong>{{ selectedCourse.name }}</strong>
+                <span *ngIf="selectedCourse.price_label"> ({{ selectedCourse.price_label }})</span>
+              </span>
+              <button
+                *ngIf="canChangeCourse"
+                type="button"
+                class="course-change-btn"
+                (click)="toggleCoursePicker()">
+                {{ coursePickerOpen ? 'Close' : 'Change' }}
+              </button>
+            </div>
+            <div class="course-picker" *ngIf="coursePickerOpen && canChangeCourse">
+              <label class="sr-only" for="booking-course-select-branch">Choose course</label>
+              <select
+                id="booking-course-select-branch"
+                [ngModel]="selectedCourse.id"
+                (ngModelChange)="onCourseSelectId($event)">
+                <option *ngFor="let c of coursesByPriceAsc" [value]="c.id">{{ courseOptionLabel(c) }}</option>
+              </select>
+            </div>
+          </div>
 
         </header>
 
@@ -250,6 +292,31 @@
 
           <p *ngIf="selectedBranch">At <strong>{{ selectedBranch.name }}</strong>. Select a day to see times.</p>
 
+          <div class="course-context" *ngIf="selectedCourse">
+            <div class="course-context-row">
+              <span class="course-context-label">
+                Course: <strong>{{ selectedCourse.name }}</strong>
+                <span *ngIf="selectedCourse.price_label"> ({{ selectedCourse.price_label }})</span>
+              </span>
+              <button
+                *ngIf="canChangeCourse"
+                type="button"
+                class="course-change-btn"
+                (click)="toggleCoursePicker()">
+                {{ coursePickerOpen ? 'Close' : 'Change' }}
+              </button>
+            </div>
+            <div class="course-picker" *ngIf="coursePickerOpen && canChangeCourse">
+              <label class="sr-only" for="booking-course-select-date">Choose course</label>
+              <select
+                id="booking-course-select-date"
+                [ngModel]="selectedCourse.id"
+                (ngModelChange)="onCourseSelectId($event)">
+                <option *ngFor="let c of coursesByPriceAsc" [value]="c.id">{{ courseOptionLabel(c) }}</option>
+              </select>
+            </div>
+          </div>
+
         </header>
 
         <div class="booking-calendar" role="group" aria-label="Choose training date">
@@ -330,6 +397,31 @@
           <h2>Choose a time</h2>
 
           <p>{{ formatDisplayDate(selectedDate) }} · {{ selectedBranch?.name }}</p>
+
+          <div class="course-context" *ngIf="selectedCourse">
+            <div class="course-context-row">
+              <span class="course-context-label">
+                Course: <strong>{{ selectedCourse.name }}</strong>
+                <span *ngIf="selectedCourse.price_label"> ({{ selectedCourse.price_label }})</span>
+              </span>
+              <button
+                *ngIf="canChangeCourse"
+                type="button"
+                class="course-change-btn"
+                (click)="toggleCoursePicker()">
+                {{ coursePickerOpen ? 'Close' : 'Change' }}
+              </button>
+            </div>
+            <div class="course-picker" *ngIf="coursePickerOpen && canChangeCourse">
+              <label class="sr-only" for="booking-course-select-slot">Choose course</label>
+              <select
+                id="booking-course-select-slot"
+                [ngModel]="selectedCourse.id"
+                (ngModelChange)="onCourseSelectId($event)">
+                <option *ngFor="let c of coursesByPriceAsc" [value]="c.id">{{ courseOptionLabel(c) }}</option>
+              </select>
+            </div>
+          </div>
 
         </header>
 
