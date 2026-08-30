@@ -93,8 +93,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   branches: Branch[] = [];
   slots: Slot[] = [];
   selectedCourse: Course | null = null;
-  /** Inline course switcher open state (Branch / Date / Time only). */
-  coursePickerOpen = false;
   selectedBranch: Branch | null = null;
   selectedDate = getKolkataToday();
   selectedSlot: Slot | null = null;
@@ -281,7 +279,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           return;
         }
       } else {
-        // Bare /booking — default to cheapest active course; user can Change in-wizard.
+        // Bare /booking — default to cheapest active course (no Course step / Change UI).
         this.selectedCourse = this.pickCheapestCourse(this.courses);
         if (!this.selectedCourse) {
           this.toast.error('No courses are available to book right now.');
@@ -310,18 +308,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Change course on Branch / Date / Time; locked from Details onward (before hold). */
-  get canChangeCourse(): boolean {
-    return this.step === 'branch' || this.step === 'date' || this.step === 'slot';
-  }
-
-  /** Active courses sorted cheapest-first (for default + picker display). */
-  get coursesByPriceAsc(): Course[] {
-    return [...this.courses].sort(
-      (a, b) => (Number(a.amount_inr) || 0) - (Number(b.amount_inr) || 0)
-    );
-  }
-
   private pickCheapestCourse(courses: Course[]): Course | null {
     if (!courses?.length) return null;
     return (
@@ -329,39 +315,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         (a, b) => (Number(a.amount_inr) || 0) - (Number(b.amount_inr) || 0)
       )[0] || null
     );
-  }
-
-  courseOptionLabel(c: Course): string {
-    const price = c.price_label || (c.amount_inr != null ? `₹${c.amount_inr}` : '');
-    return price ? `${c.name} (${price})` : c.name;
-  }
-
-  toggleCoursePicker() {
-    if (!this.canChangeCourse) return;
-    this.coursePickerOpen = !this.coursePickerOpen;
-  }
-
-  onCourseSelectId(id: string) {
-    const course = this.courses.find((c) => c.id === id);
-    if (course) this.selectCourse(course);
-  }
-
-  /**
-   * Update selectedCourse + fee display. Slots/availability are branch+date based
-   * (not course-scoped), so branch/date/slot are kept.
-   */
-  selectCourse(course: Course) {
-    if (!this.canChangeCourse || !course) return;
-    if (this.selectedCourse?.id === course.id) {
-      this.coursePickerOpen = false;
-      return;
-    }
-    this.selectedCourse = course;
-    this.couponCode = '';
-    this.couponResult = null;
-    this.couponError = '';
-    this.coursePickerOpen = false;
-    this.syncCourseQueryParam(course.slug);
   }
 
   /** Keep ?course= in sync for OAuth return / share without dropping other params. */
@@ -971,9 +924,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   go(step: WizardStep) {
     if (!this.canNavigate(step)) return;
     this.step = step;
-    if (step === 'details' || step === 'payment' || step === 'done') {
-      this.coursePickerOpen = false;
-    }
     if (step === 'date') {
       this.syncCalendarToSelected();
       void this.probeMonthAvailability();
