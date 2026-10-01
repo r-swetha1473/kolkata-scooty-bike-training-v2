@@ -17,6 +17,8 @@ coverage/
 .env.local
 .env.*.local
 backend/.env
+backup_before_stages.dump
+*.dump
 
 # Logs
 *.log

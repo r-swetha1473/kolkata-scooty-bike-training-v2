@@ -461,61 +461,7 @@ END;
 $$;
 
 
---
--- Name: check_vehicle_capacity(uuid, public.vehicle_type_enum); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.check_vehicle_capacity(p_slot_id uuid, p_vehicle_type public.vehicle_type_enum) RETURNS boolean
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  v_electric_capacity INTEGER;
-  v_petrol_capacity INTEGER;
-  v_bike_capacity INTEGER;
-  v_electric_booked INTEGER;
-  v_petrol_booked INTEGER;
-  v_bike_booked INTEGER;
-BEGIN
-  -- Get slot capacities
-  SELECT electric_capacity, petrol_capacity, bike_capacity
-  INTO v_electric_capacity, v_petrol_capacity, v_bike_capacity
-  FROM slots
-  WHERE id = p_slot_id;
-  
-  IF NOT FOUND THEN
-    RETURN FALSE;
-  END IF;
-  
-  -- Get current bookings by vehicle type
-  SELECT 
-    COUNT(*) FILTER (WHERE vehicle_type = 'ELECTRIC'),
-    COUNT(*) FILTER (WHERE vehicle_type = 'PETROL'),
-    COUNT(*) FILTER (WHERE vehicle_type = 'BIKE')
-  INTO v_electric_booked, v_petrol_booked, v_bike_booked
-  FROM bookings
-  WHERE slot_id = p_slot_id
-    AND status NOT IN ('cancelled');
-  
-  -- Check capacity for requested vehicle type
-  CASE p_vehicle_type
-    WHEN 'ELECTRIC' THEN
-      RETURN v_electric_booked < v_electric_capacity;
-    WHEN 'PETROL' THEN
-      RETURN v_petrol_booked < v_petrol_capacity;
-    WHEN 'BIKE' THEN
-      RETURN v_bike_booked < v_bike_capacity;
-    ELSE
-      RETURN FALSE;
-  END CASE;
-END;
-$$;
-
-
---
--- Name: FUNCTION check_vehicle_capacity(p_slot_id uuid, p_vehicle_type public.vehicle_type_enum); Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON FUNCTION public.check_vehicle_capacity(p_slot_id uuid, p_vehicle_type public.vehicle_type_enum) IS 'Checks if capacity is available for a specific vehicle type in a slot';
+-- check_vehicle_capacity was removed. Per-slot seats live in slot_vehicle_capacity.
 
 
 --
@@ -628,15 +574,8 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Remove vehicles that do not belong to this slot's branch (or are inactive)
-  DELETE FROM slot_vehicle_capacity svc
-  USING vehicles v
-  WHERE svc.slot_id = p_slot_id
-    AND svc.vehicle_id = v.id
-    AND (v.is_active = false OR v.branch_id IS DISTINCT FROM v_branch_id);
-
-  INSERT INTO slot_vehicle_capacity (slot_id, vehicle_id, capacity)
-  SELECT p_slot_id, v.id, v.max_per_slot
+  INSERT INTO slot_vehicle_capacity (slot_id, vehicle_id, capacity, is_enabled, is_manual_override)
+  SELECT p_slot_id, v.id, v.max_per_slot, true, false
   FROM vehicles v
   WHERE v.is_active = true
     AND v.branch_id = v_branch_id
@@ -646,7 +585,6 @@ BEGIN
     )
   ON CONFLICT (slot_id, vehicle_id) DO NOTHING;
 
-  -- Keep capacities in sync with current max_per_slot
   UPDATE slot_vehicle_capacity svc
   SET capacity = v.max_per_slot,
       updated_at = NOW()
@@ -654,7 +592,16 @@ BEGIN
   WHERE svc.slot_id = p_slot_id
     AND svc.vehicle_id = v.id
     AND v.branch_id = v_branch_id
-    AND v.is_active = true;
+    AND v.is_active = true
+    AND svc.is_manual_override = false;
+
+  DELETE FROM slot_vehicle_capacity svc
+  USING vehicles v
+  WHERE svc.slot_id = p_slot_id
+    AND svc.vehicle_id = v.id
+    AND svc.is_manual_override = false
+    AND COALESCE(svc.is_enabled, true) = true
+    AND (v.is_active = false OR v.branch_id IS DISTINCT FROM v_branch_id);
 END;
 $$;
 
@@ -663,7 +610,7 @@ $$;
 -- Name: FUNCTION ensure_slot_vehicle_capacities(p_slot_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.ensure_slot_vehicle_capacities(p_slot_id uuid) IS 'Ensures a slot has capacity entries only for active vehicles on the same branch.';
+COMMENT ON FUNCTION public.ensure_slot_vehicle_capacities(p_slot_id uuid) IS 'Adds missing active-vehicle rows for one slot. Does not overwrite or delete manual overrides or per-slot disables.';
 
 
 --
@@ -1204,34 +1151,7 @@ END;
 $$;
 
 
---
--- Name: validate_booking_vehicle_capacity(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.validate_booking_vehicle_capacity() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  v_capacity_available BOOLEAN;
-BEGIN
-  -- Check if capacity is available for this vehicle type
-  SELECT check_vehicle_capacity(NEW.slot_id, NEW.vehicle_type)
-  INTO v_capacity_available;
-  
-  IF NOT v_capacity_available THEN
-    RAISE EXCEPTION 'Vehicle capacity exceeded for vehicle type % in slot %', NEW.vehicle_type, NEW.slot_id;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$;
-
-
---
--- Name: FUNCTION validate_booking_vehicle_capacity(); Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON FUNCTION public.validate_booking_vehicle_capacity() IS 'Trigger function to validate vehicle capacity before booking insert';
+-- validate_booking_vehicle_capacity was removed. Booking inserts no longer read electric_capacity / petrol_capacity / bike_capacity.
 
 
 SET default_tablespace = '';
@@ -1965,7 +1885,8 @@ CREATE TABLE public.profiles (
     must_change_password boolean DEFAULT false NOT NULL,
     auth_provider text DEFAULT 'google'::text,
     CONSTRAINT profiles_auth_provider_check CHECK ((auth_provider = ANY (ARRAY['google'::text, 'email'::text, 'phone'::text]))),
-    CONSTRAINT profiles_role_check CHECK ((role = ANY (ARRAY['customer'::text, 'trainer'::text, 'admin'::text, 'superadmin'::text, 'subadmin'::text])))
+    CONSTRAINT profiles_role_check CHECK ((role = ANY (ARRAY['customer'::text, 'trainer'::text, 'admin'::text, 'superadmin'::text, 'subadmin'::text]))),
+    CONSTRAINT profiles_phone_digits_or_placeholder CHECK (((phone ~ '^(GOOGLE_|TRAINER_|ADMIN_)'::text) OR (phone ~ '^[6-9][0-9]{9}$'::text)))
 );
 
 
@@ -2136,6 +2057,8 @@ CREATE TABLE public.slot_vehicle_capacity (
     slot_id uuid NOT NULL,
     vehicle_id uuid NOT NULL,
     capacity integer DEFAULT 1 NOT NULL,
+    is_enabled boolean DEFAULT true NOT NULL,
+    is_manual_override boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT slot_vehicle_capacity_capacity_check CHECK ((capacity > 0))
@@ -3126,20 +3049,7 @@ COMMENT ON INDEX public.idx_bookings_phone_created_week IS 'Optimizes weekly boo
 CREATE INDEX idx_bookings_slot_id ON public.bookings USING btree (slot_id);
 
 
---
--- Name: idx_bookings_slot_trainer_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_bookings_slot_trainer_active ON public.bookings USING btree (slot_id, trainer_id) WHERE ((trainer_id IS NOT NULL) AND (status <> 'cancelled'::text));
-
-
---
--- Name: INDEX idx_bookings_slot_trainer_active; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON INDEX public.idx_bookings_slot_trainer_active IS 'Prevents assigning the same trainer to more than one active booking for the same time slot.';
-
-
+-- idx_bookings_slot_trainer_active was removed so one trainer can cover many bookings in a slot.
 --
 -- Name: idx_bookings_slot_vehicle; Type: INDEX; Schema: public; Owner: -
 --
@@ -3728,13 +3638,7 @@ CREATE TRIGGER trigger_set_slot_date BEFORE INSERT OR UPDATE OF start_time ON pu
 CREATE TRIGGER trigger_update_slot_visibility BEFORE INSERT OR UPDATE OF start_time ON public.slots FOR EACH ROW EXECUTE FUNCTION public.update_slot_visibility();
 
 
---
--- Name: bookings trigger_validate_booking_vehicle_capacity; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_validate_booking_vehicle_capacity BEFORE INSERT ON public.bookings FOR EACH ROW EXECUTE FUNCTION public.validate_booking_vehicle_capacity();
-
-
+-- trigger_validate_booking_vehicle_capacity was removed. slot_vehicle_capacity is the capacity source of truth.
 --
 -- Name: admins update_admins_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
@@ -4399,3 +4303,102 @@ INSERT INTO public.vehicles (id, name, type, description, is_active, created_at,
 
 SET session_replication_role = DEFAULT;
 UPDATE public.settings SET updated_by = NULL WHERE updated_by IS NOT NULL;
+
+-- Candidate management (fresh installs). Existing databases should run
+-- database/migrations/20261001170000_candidates.sql instead. Idempotent.
+
+CREATE TABLE IF NOT EXISTS public.candidates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  mobile text NOT NULL,
+  admission_date date NOT NULL DEFAULT (NOW() AT TIME ZONE 'Asia/Kolkata')::date,
+  trainer_id uuid NULL REFERENCES public.trainers(id) ON DELETE SET NULL,
+  branch_id uuid NULL REFERENCES public.branches(id) ON DELETE SET NULL,
+  profile_id uuid NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  status text NOT NULL DEFAULT 'ACTIVE',
+  notes text NULL,
+  created_by uuid NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW(),
+  CONSTRAINT candidates_name_not_blank CHECK (length(trim(name)) > 0),
+  CONSTRAINT candidates_mobile_format CHECK (mobile ~ '^[6-9][0-9]{9}$'),
+  CONSTRAINT candidates_status_check CHECK (status IN ('ACTIVE', 'COMPLETED', 'DROPPED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_candidates_mobile ON public.candidates (mobile);
+CREATE INDEX IF NOT EXISTS idx_candidates_trainer_id ON public.candidates (trainer_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_status ON public.candidates (status);
+CREATE INDEX IF NOT EXISTS idx_candidates_admission_date ON public.candidates (admission_date);
+
+CREATE TABLE IF NOT EXISTS public.candidate_fee_plans (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  candidate_id uuid NOT NULL UNIQUE REFERENCES public.candidates(id) ON DELETE CASCADE,
+  total_fee numeric(12,2) NOT NULL,
+  course_label text NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  CONSTRAINT candidate_fee_plans_total_nonnegative CHECK (total_fee >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS public.candidate_payments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  candidate_id uuid NOT NULL REFERENCES public.candidates(id) ON DELETE CASCADE,
+  amount numeric(12,2) NOT NULL,
+  paid_on date NOT NULL,
+  method text NOT NULL,
+  reference text NULL,
+  note text NULL,
+  recorded_by uuid NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  idempotency_key text NULL,
+  voided_at timestamptz NULL,
+  voided_by uuid NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  void_reason text NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  CONSTRAINT candidate_payments_amount_positive CHECK (amount > 0),
+  CONSTRAINT candidate_payments_method_check CHECK (method IN ('CASH', 'UPI', 'CARD', 'BANK', 'OTHER'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_candidate_payments_idempotency
+  ON public.candidate_payments (candidate_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_candidate_payments_candidate_id
+  ON public.candidate_payments (candidate_id);
+
+CREATE TABLE IF NOT EXISTS public.candidate_classes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  candidate_id uuid NOT NULL REFERENCES public.candidates(id) ON DELETE CASCADE,
+  class_date date NOT NULL,
+  trainer_id uuid NULL REFERENCES public.trainers(id) ON DELETE SET NULL,
+  vehicle_id uuid NULL REFERENCES public.vehicles(id) ON DELETE SET NULL,
+  attendance text NOT NULL DEFAULT 'SCHEDULED',
+  booking_id uuid NULL REFERENCES public.bookings(id) ON DELETE SET NULL,
+  note text NULL,
+  marked_by uuid NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  CONSTRAINT candidate_classes_attendance_check CHECK (
+    attendance IN ('SCHEDULED', 'ATTENDED', 'NO_SHOW', 'CANCELLED')
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_candidate_classes_candidate_date
+  ON public.candidate_classes (candidate_id, class_date);
+
+CREATE OR REPLACE VIEW public.candidate_bill_summary AS
+SELECT
+  c.id AS candidate_id,
+  COALESCE(fp.total_fee, 0)::numeric(12,2) AS total_fee,
+  COALESCE(pay.paid_total, 0)::numeric(12,2) AS paid_total,
+  (COALESCE(fp.total_fee, 0) - COALESCE(pay.paid_total, 0))::numeric(12,2) AS due_total,
+  COALESCE(cls.classes_completed, 0)::int AS classes_completed
+FROM public.candidates c
+LEFT JOIN public.candidate_fee_plans fp ON fp.candidate_id = c.id
+LEFT JOIN LATERAL (
+  SELECT COALESCE(SUM(p.amount), 0) AS paid_total
+  FROM public.candidate_payments p
+  WHERE p.candidate_id = c.id AND p.voided_at IS NULL
+) pay ON true
+LEFT JOIN LATERAL (
+  SELECT COUNT(*)::int AS classes_completed
+  FROM public.candidate_classes cl
+  WHERE cl.candidate_id = c.id AND cl.attendance = 'ATTENDED'
+) cls ON true;
