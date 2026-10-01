@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, activeCustomerGuard, superAdminGuard, passwordChangeRequiredGuard } from './guards/auth.guard';
+import { authGuard, adminGuard, activeCustomerGuard, superAdminGuard, passwordChangeRequiredGuard, phoneRequiredGuard } from './guards/auth.guard';
 import { permissionGuard } from './guards/permission.guard';
 import { loadWithRetry } from './utils/route-loaders';
 
@@ -106,14 +106,26 @@ export const routes: Routes = [
       )
   },
   {
+    path: 'complete-profile',
+    canDeactivate: [
+      (component: { allowLeave?: () => boolean }) => component?.allowLeave?.() !== false
+    ],
+    loadComponent: () =>
+      loadWithRetry(() =>
+        import('./pages/complete-profile/complete-profile.component').then(
+          (m) => m.CompleteProfileComponent
+        )
+      )
+  },
+  {
     path: 'booking',
-    canActivate: [activeCustomerGuard],
+    canActivate: [phoneRequiredGuard, activeCustomerGuard],
     loadComponent: () =>
       loadWithRetry(() => import('./pages/booking/booking.component').then((m) => m.BookingComponent))
   },
   {
     path: 'account',
-    canActivate: [authGuard, activeCustomerGuard],
+    canActivate: [authGuard, phoneRequiredGuard, activeCustomerGuard],
     loadComponent: () =>
       loadWithRetry(() =>
         import('./pages/customer-dashboard/customer-dashboard.component').then(
@@ -123,7 +135,7 @@ export const routes: Routes = [
   },
   {
     path: 'my-payments',
-    canActivate: [authGuard, activeCustomerGuard],
+    canActivate: [authGuard, phoneRequiredGuard, activeCustomerGuard],
     loadComponent: () =>
       loadWithRetry(() =>
         import('./pages/my-payments/my-payments.component').then((m) => m.MyPaymentsComponent)
@@ -131,13 +143,13 @@ export const routes: Routes = [
   },
   {
     path: 'profile',
-    canActivate: [authGuard],
+    canActivate: [authGuard, phoneRequiredGuard],
     loadComponent: () =>
       loadWithRetry(() => import('./pages/profile/profile.component').then((m) => m.ProfileComponent))
   },
   {
     path: 'my-bookings',
-    canActivate: [authGuard],
+    canActivate: [authGuard, phoneRequiredGuard],
     loadComponent: () =>
       loadWithRetry(() => import('./pages/my-bookings/my-bookings.component').then((m) => m.MyBookingsComponent))
   },
@@ -179,6 +191,36 @@ export const routes: Routes = [
         loadComponent: () =>
           loadWithRetry(() =>
             import('./admin/pages/bookings/bookings.component').then((m) => m.AdminBookingsComponent)
+          )
+      },
+      {
+        path: 'candidates/new',
+        canActivate: [permissionGuard('candidates', 'create'), passwordChangeRequiredGuard],
+        loadComponent: () =>
+          loadWithRetry(() =>
+            import('./admin/pages/candidates/candidate-admission.component').then(
+              (m) => m.CandidateAdmissionComponent
+            )
+          )
+      },
+      {
+        path: 'candidates/:id',
+        canActivate: [permissionGuard('candidates', 'view'), passwordChangeRequiredGuard],
+        loadComponent: () =>
+          loadWithRetry(() =>
+            import('./admin/pages/candidates/candidate-portfolio.component').then(
+              (m) => m.CandidatePortfolioComponent
+            )
+          )
+      },
+      {
+        path: 'candidates',
+        canActivate: [permissionGuard('candidates', 'view'), passwordChangeRequiredGuard],
+        loadComponent: () =>
+          loadWithRetry(() =>
+            import('./admin/pages/candidates/candidates-list.component').then(
+              (m) => m.AdminCandidatesComponent
+            )
           )
       },
       {

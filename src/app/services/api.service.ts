@@ -139,7 +139,7 @@ export class ApiService {
     return this.http.get<Trainer>(`${this.apiUrl}/trainers/${id}`, this.getHttpOptions(false));
   }
 
-  /** Active trainers for booking UI; each slot may use any active trainer once per booking (enforced on submit). */
+  /** @deprecated Customers do not pick a trainer. Nothing in the booking flow calls this. */
   getAvailableTrainersForSlot(slotId: string): Observable<Trainer[]> {
     return this.http.get<Trainer[]>(
       `${this.apiUrl}/trainers/available-for-slot/${encodeURIComponent(slotId)}`,
@@ -156,15 +156,13 @@ export class ApiService {
   }
 
   /**
-   * Create booking: customer chooses trainer_id and vehicle_id for the slot.
+   * Create booking. Customer chooses a vehicle. Trainer assignment is admin-only.
    */
   createBooking(
     slotId: string,
     options?: {
       phone?: string;
       notes?: string;
-      trainer_id?: string;
-      trainerId?: string;
       vehicle_id?: string;
       vehicleId?: string;
       branch_id?: string;
@@ -180,11 +178,6 @@ export class ApiService {
     const phone = options?.phone?.trim();
     if (phone) {
       payload.phone = phone;
-    }
-    const tid = (options?.trainer_id || options?.trainerId || '').trim();
-    if (tid) {
-      payload.trainer_id = tid;
-      payload.trainerId = tid;
     }
     const vid = (options?.vehicle_id || options?.vehicleId || '').trim();
     if (vid) {

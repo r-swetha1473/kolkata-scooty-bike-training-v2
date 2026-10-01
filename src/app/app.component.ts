@@ -10,6 +10,7 @@ import { ToastComponent } from './components/toast/toast.component';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { CookieConsentComponent } from './components/cookie-consent/cookie-consent.component';
 import { BrandLogoComponent } from './shared/components/brand-logo/brand-logo.component';
+import { customerNeedsPhone, safeInternalNext } from './utils/phone-gate';
 
 @Component({
   selector: 'app-root',
@@ -26,7 +27,10 @@ import { BrandLogoComponent } from './shared/components/brand-logo/brand-logo.co
   ],
   template: `
     <div class="app-container">
-      <header class="site-header" *ngIf="!isAdminRoute"
+      <a class="phone-banner" *ngIf="showPhoneBanner" [routerLink]="['/complete-profile']" [queryParams]="{ next: bannerNext }">
+        Add your mobile number to book classes.
+      </a>
+      <header class="site-header" *ngIf="!isAdminRoute && !isCompleteProfileRoute"
         [class.scrolled]="isScrolled"
         [class.menu-open]="menuOpen"
         [class.header-transparent]="isHomeRoute && !isScrolled">
@@ -134,7 +138,7 @@ import { BrandLogoComponent } from './shared/components/brand-logo/brand-logo.co
       <app-toast *ngIf="!isAdminRoute"></app-toast>
       <app-confirm-dialog *ngIf="!isAdminRoute"></app-confirm-dialog>
 
-      <footer class="site-footer xp-footer" *ngIf="!isAdminRoute">
+      <footer class="site-footer xp-footer" *ngIf="!isAdminRoute && !isCompleteProfileRoute">
         <div class="container">
           <div class="footer-grid">
             <div class="footer-brand">
@@ -657,6 +661,17 @@ import { BrandLogoComponent } from './shared/components/brand-logo/brand-logo.co
       .footer-grid { grid-template-columns: 1fr 1fr; gap: var(--space-8); }
     }
 
+    .phone-banner {
+      display: block;
+      background: #1d4ed8;
+      color: #fff;
+      text-align: center;
+      padding: 0.7rem 1rem;
+      font-size: 0.92rem;
+      text-decoration: none;
+    }
+    .phone-banner:hover { background: #1e40af; }
+
     @media (max-width: 560px) {
       .footer-grid { grid-template-columns: 1fr; }
       .footer-bottom { flex-direction: column; align-items: flex-start; }
@@ -670,6 +685,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   showUserMenu = false;
   isAdminRoute = false;
   isHomeRoute = false;
+  isCompleteProfileRoute = false;
+  currentPath = '/';
   settings: SiteSettings = {
     site_name: 'Kolkata Scooty Bike Training',
     site_logo: '/assets/brand/logo.svg',
@@ -758,8 +775,19 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private checkAdminRoute(url: string) {
     const path = url.split('?')[0].split('#')[0];
+    this.currentPath = path || '/';
     this.isAdminRoute = path.startsWith('/admin') && path !== '/admin/login' && !path.startsWith('/admin/login');
     this.isHomeRoute = path === '/' || path === '';
+    this.isCompleteProfileRoute = path === '/complete-profile';
+  }
+
+  get showPhoneBanner(): boolean {
+    if (this.isAdminRoute || this.isCompleteProfileRoute) return false;
+    return customerNeedsPhone(this.authService.getUserProfile());
+  }
+
+  get bannerNext(): string {
+    return safeInternalNext(this.currentPath || '/');
   }
 
   whatsappUrl(): string {

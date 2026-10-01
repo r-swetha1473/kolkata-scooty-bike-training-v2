@@ -679,10 +679,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     return `${m} Minute${m === 1 ? '' : 's'}`;
   }
 
-  trainerName(slot: Slot): string {
-    return slot.trainer?.profile?.full_name || 'Trainer TBD';
-  }
-
   vehicleSummary(slot: Slot): string {
     const rows = slot.vehicle_capacities || [];
     if (!rows.length) return 'Vehicle TBD';

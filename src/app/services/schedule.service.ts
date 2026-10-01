@@ -8,6 +8,9 @@ export interface ScheduleVehicleCapacity {
   capacity: number;
   booked: number;
   remaining?: number;
+  configured_capacity?: number;
+  is_enabled?: boolean;
+  is_manual_override?: boolean;
 }
 
 export interface ScheduleWindow {
@@ -116,6 +119,22 @@ export class ScheduleService {
     return firstValueFrom(this.http.post('/schedule/capacity-override', payload));
   }
 
+  updateSlotVehicle(
+    slotId: string,
+    vehicleId: string,
+    body: { is_enabled?: boolean; capacity?: number }
+  ) {
+    return firstValueFrom(
+      this.http.put<{
+        success: boolean;
+        affected_bookings: number;
+        is_enabled: boolean;
+        capacity: number;
+        message?: string;
+      }>(`/slots/${slotId}/vehicles/${vehicleId}`, body)
+    );
+  }
+
   assignTrainer(payload: {
     branch_id: string;
     date: string;
@@ -143,6 +162,30 @@ export class ScheduleService {
     reason?: string;
   }) {
     return firstValueFrom(this.http.post('/schedule/bulk-disable', payload));
+  }
+
+  listVehicleOverrides(branchId: string) {
+    const qs = new URLSearchParams({ branch_id: branchId });
+    return firstValueFrom(
+      this.http.get<{
+        slots: Array<{
+          id: string;
+          start_time: string;
+          end_time: string;
+          slot_date?: string;
+          vehicles?: Array<{ vehicle_name?: string; is_enabled?: boolean }>;
+        }>;
+      }>(`/slots/vehicle-overrides?${qs}`)
+    );
+  }
+
+  resetSlotVehicleOverrides(slotId: string) {
+    return firstValueFrom(
+      this.http.post<{ success: boolean; message?: string }>(
+        `/slots/${slotId}/reset-vehicle-overrides`,
+        {}
+      )
+    );
   }
 
   async exportCsv(branchId: string, date: string): Promise<Blob> {

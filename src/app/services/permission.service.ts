@@ -15,7 +15,9 @@ export type PermissionModule =
   | 'gallery'
   | 'testimonials'
   | 'blogs'
-  | 'coupons';
+  | 'coupons'
+  | 'candidates'
+  | 'candidates_payments';
 
 export type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
 
@@ -43,6 +45,8 @@ export class PermissionService {
         testimonials: ['view', 'create', 'edit', 'delete'],
         blogs: ['view', 'create', 'edit', 'delete'],
         coupons: ['view', 'create', 'edit', 'delete'],
+        candidates: ['view', 'create', 'edit'],
+        candidates_payments: ['view', 'create', 'edit', 'delete'],
         settings: [],
         audit_logs: []
       };
@@ -70,6 +74,7 @@ export class PermissionService {
     const order: { module: PermissionModule; path: string }[] = [
       { module: 'dashboard', path: '/admin' },
       { module: 'bookings', path: '/admin/bookings' },
+      { module: 'candidates', path: '/admin/candidates' },
       { module: 'users', path: '/admin/users' },
       { module: 'trainers', path: '/admin/trainers' },
       { module: 'vehicles', path: '/admin/vehicles' },

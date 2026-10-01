@@ -111,6 +111,19 @@ const BRANCH_KEY = 'admin_schedule_branch_id';
         <p>Choose a branch tab to load the schedule calendar.</p>
       </div>
 
+      <section class="override-panel" *ngIf="selectedBranchId && overrideSlots.length">
+        <h2>Slots with vehicle overrides</h2>
+        <p>These slots keep custom vehicle settings until you reset them to the vehicle defaults.</p>
+        <ul>
+          <li *ngFor="let slot of overrideSlots">
+            <span>{{ overrideSlotLabel(slot) }}</span>
+            <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" (click)="resetOverride(slot)" [disabled]="actionSaving">
+              Reset to default
+            </button>
+          </li>
+        </ul>
+      </section>
+
       <!-- MONTH -->
       <div class="month-grid" *ngIf="!loading && selectedBranchId && view === 'month'">
         <div class="month-head" *ngFor="let d of weekDayLabels">{{ d }}</div>
@@ -234,6 +247,26 @@ const BRANCH_KEY = 'admin_schedule_branch_id';
               <option *ngFor="let t of branchContext?.trainers || []" [value]="t.id">{{ t.full_name }}</option>
             </select>
             <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" (click)="saveTrainer()" [disabled]="actionSaving">Assign trainer</button>
+          </div>
+          <div class="form-group" *ngIf="manageVehicles.length">
+            <label>Vehicles for this slot</label>
+            <p class="slot-hint" *ngIf="!slotIdOf(activeWindow)">This window is not saved as a slot yet, so per-slot vehicle settings cannot be stored.</p>
+            <div class="vehicle-override" *ngFor="let v of manageVehicles">
+              <label class="vehicle-override-enable">
+                <input type="checkbox" [(ngModel)]="v.is_enabled" [disabled]="!slotIdOf(activeWindow)" />
+                <span>{{ v.vehicle_name }}</span>
+              </label>
+              <input type="number" class="admin-input" [(ngModel)]="v.capacity" min="1" [disabled]="!slotIdOf(activeWindow)" />
+              <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" (click)="saveVehicleSetting(v)" [disabled]="actionSaving || !slotIdOf(activeWindow)">Save</button>
+            </div>
+            <button
+              type="button"
+              class="admin-btn admin-btn-secondary admin-btn-sm"
+              *ngIf="slotHasManualOverride(activeWindow)"
+              (click)="resetActiveOverride()"
+              [disabled]="actionSaving || !slotIdOf(activeWindow)">
+              Reset to default
+            </button>
           </div>
           <div class="form-group">
             <label>Override capacity</label>
@@ -417,6 +450,20 @@ const BRANCH_KEY = 'admin_schedule_branch_id';
     .detail-grid label { display: block; font-size: 0.75rem; color: var(--color-muted); }
     .branch-context-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.875rem; }
     .form-group { margin-bottom: 0.85rem; display: grid; gap: 0.35rem; }
+    .slot-hint { margin: 0; font-size: 0.75rem; color: var(--color-muted); }
+    .override-panel {
+      margin: 0 0 1rem;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      background: var(--color-card);
+    }
+    .override-panel h2 { margin: 0 0 0.25rem; font-size: 1rem; }
+    .override-panel p { margin: 0 0 0.6rem; font-size: 0.8125rem; color: var(--color-text-muted, #64748b); }
+    .override-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+    .override-panel li { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; font-size: 0.875rem; }
+    .vehicle-override { display: grid; grid-template-columns: 1fr 5.5rem auto; gap: 0.4rem; align-items: center; }
+    .vehicle-override-enable { display: flex; gap: 0.4rem; align-items: center; font-size: 0.8125rem; }
     @media (max-width: 900px) {
       .week-summary-grid { grid-template-columns: repeat(7, minmax(160px, 1fr)); }
       .month-cell { min-height: 68px; }
@@ -443,6 +490,14 @@ export class AdminSlotsComponent implements OnInit, OnDestroy {
   activeWindow: ScheduleWindow | null = null;
   activeWindowDate = '';
   manageForm = { trainer_id: '', capacity: 0, notes: '' };
+  manageVehicles: Array<{ vehicle_id: string; vehicle_name: string; capacity: number; is_enabled: boolean }> = [];
+  overrideSlots: Array<{
+    id: string;
+    start_time: string;
+    end_time: string;
+    slot_date?: string;
+    vehicles?: Array<{ vehicle_name?: string; is_enabled?: boolean }>;
+  }> = [];
   private eventSource?: EventSource;
   private dayCache = new Map<string, ScheduleTimelineResponse>();
 
@@ -576,6 +631,7 @@ export class AdminSlotsComponent implements OnInit, OnDestroy {
       if (this.view === 'day') await this.loadDay(this.selectedDate);
       else if (this.view === 'week') await this.loadWeek();
       else await this.loadMonth();
+      await this.loadOverrideSlots();
     } catch (e) {
       this.toastService.error(getApiErrorMessage(e, 'Failed to load schedule'));
     } finally {
@@ -761,7 +817,87 @@ export class AdminSlotsComponent implements OnInit, OnDestroy {
       capacity: row.capacity,
       notes: row.reason || ''
     };
+    this.manageVehicles = (row.vehicle_capacities || []).map((v) => ({
+      vehicle_id: v.vehicle_id,
+      vehicle_name: v.vehicle_name,
+      capacity: v.configured_capacity ?? v.capacity,
+      is_enabled: v.is_enabled !== false
+    }));
     this.manageOpen = true;
+  }
+
+  slotIdOf(row: ScheduleWindow | null): string {
+    return row?.id || row?.slot_id || '';
+  }
+
+  async saveVehicleSetting(vehicle: { vehicle_id: string; capacity: number; is_enabled: boolean; vehicle_name: string }) {
+    const slotId = this.slotIdOf(this.activeWindow);
+    if (!slotId || !this.activeWindow) return;
+    this.actionSaving = true;
+    try {
+      const result = await this.scheduleService.updateSlotVehicle(slotId, vehicle.vehicle_id, {
+        is_enabled: vehicle.is_enabled,
+        capacity: Number(vehicle.capacity) || 1
+      });
+      const kept = result.affected_bookings > 0 && vehicle.is_enabled === false
+        ? ` ${result.affected_bookings} existing booking(s) on this vehicle are unchanged.`
+        : '';
+      this.toastService.success(`Saved ${vehicle.vehicle_name} for this slot.${kept}`);
+      this.dayCache.clear();
+      await this.reloadVisible();
+      const refreshed = this.daySlots.find((row) => this.slotIdOf(row) === slotId);
+      if (refreshed) this.openManage(refreshed, this.activeWindowDate);
+    } catch (e) {
+      this.toastService.error(getApiErrorMessage(e, 'Failed to update vehicle for this slot'));
+    } finally {
+      this.actionSaving = false;
+    }
+  }
+
+  slotHasManualOverride(row: ScheduleWindow | null): boolean {
+    return !!row?.vehicle_capacities?.some((vehicle) => vehicle.is_manual_override);
+  }
+
+  overrideSlotLabel(slot: { start_time: string; slot_date?: string; vehicles?: Array<{ vehicle_name?: string }> }): string {
+    const when = slot.start_time ? `${slot.slot_date || ''} ${this.formatTime(slot.start_time)}`.trim() : 'Slot';
+    const names = (slot.vehicles || []).map((vehicle) => vehicle.vehicle_name).filter(Boolean).join(', ');
+    return names ? `${when} — ${names}` : when;
+  }
+
+  async resetOverride(slot: { id: string }, closeAfter = false): Promise<void> {
+    if (!slot?.id) return;
+    if (!window.confirm('Reset this slot’s vehicles to their default capacity and turn them back on?')) return;
+    this.actionSaving = true;
+    try {
+      await this.scheduleService.resetSlotVehicleOverrides(slot.id);
+      this.toastService.success('Slot vehicles reset to default');
+      this.dayCache.clear();
+      await this.reloadVisible();
+      if (closeAfter) this.closeManage();
+    } catch (e) {
+      this.toastService.error(getApiErrorMessage(e, 'Failed to reset this slot'));
+    } finally {
+      this.actionSaving = false;
+    }
+  }
+
+  resetActiveOverride(): Promise<void> {
+    const slotId = this.activeWindow ? this.slotIdOf(this.activeWindow) : '';
+    if (!slotId) return Promise.resolve();
+    return this.resetOverride({ id: slotId }, true);
+  }
+
+  private async loadOverrideSlots(): Promise<void> {
+    if (!this.selectedBranchId) {
+      this.overrideSlots = [];
+      return;
+    }
+    try {
+      const result = await this.scheduleService.listVehicleOverrides(this.selectedBranchId);
+      this.overrideSlots = result?.slots || [];
+    } catch {
+      this.overrideSlots = [];
+    }
   }
 
   closeManage() {
@@ -903,7 +1039,11 @@ export class AdminSlotsComponent implements OnInit, OnDestroy {
   }
 
   vehicleLine(row: ScheduleWindow) {
-    return (row.vehicle_capacities || []).map((v) => `${v.vehicle_name} ${v.booked}/${v.capacity}`).join(', ') || '—';
+    return (row.vehicle_capacities || []).map((v) => {
+      const cap = v.configured_capacity ?? v.capacity;
+      if (v.is_enabled === false) return `${v.vehicle_name} off`;
+      return `${v.vehicle_name} ${v.booked}/${cap}`;
+    }).join(', ') || '—';
   }
 
   private weekStart(date: string) {

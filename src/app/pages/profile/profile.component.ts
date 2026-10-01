@@ -6,6 +6,7 @@ import { Subscription, firstValueFrom } from 'rxjs';
 import { AuthService, UserProfile } from '../../services/auth.service';
 import { HttpService } from '../../services/http.service';
 import { ApiService } from '../../services/api.service';
+import { INVALID_MOBILE_MESSAGE, normalizeStrictIndianMobile } from '../../utils/phone-normalize';
 
 interface ProfilePrefs {
   emailNotifications: boolean;
@@ -111,7 +112,7 @@ const DEFAULT_PREFS: ProfilePrefs = {
             <input
               id="profilePhone"
               type="tel"
-              maxlength="10"
+              maxlength="16"
               inputmode="numeric"
               autocomplete="tel"
               [(ngModel)]="phoneEditValue"
@@ -123,7 +124,7 @@ const DEFAULT_PREFS: ProfilePrefs = {
             type="button"
             class="btn-save"
             (click)="saveMobileNumber()"
-            [disabled]="savingPhone || !isPhoneInputValid()">
+            [disabled]="savingPhone">
             {{ savingPhone ? 'Saving…' : 'Save mobile number' }}
           </button>
           <p class="ok" *ngIf="phoneUpdateSuccess">{{ phoneUpdateSuccess }}</p>
@@ -626,12 +627,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   isPhoneInputValid(): boolean {
-    return /^[0-9]{10}$/.test((this.phoneEditValue || '').trim());
+    return !!normalizeStrictIndianMobile(this.phoneEditValue);
   }
 
   async saveMobileNumber(): Promise<void> {
     if (!this.isPhoneInputValid()) {
-      this.phoneUpdateError = 'Enter a valid 10-digit mobile number.';
+      this.phoneUpdateError = INVALID_MOBILE_MESSAGE;
       this.phoneUpdateSuccess = '';
       return;
     }

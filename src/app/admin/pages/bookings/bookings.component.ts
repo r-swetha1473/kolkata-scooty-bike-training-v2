@@ -9,7 +9,7 @@ import { ToastService } from '../../../services/toast.service';
 import { ConfirmDialogService } from '../../../services/confirm-dialog.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { firstValueFrom } from 'rxjs';
-import { categorizeVehicleName } from '../../../utils/vehicle.utils';
+import { formatAdminVehicleLabel } from '../../../utils/vehicle-label';
 import { PermissionService } from '../../../services/permission.service';
 import { AdminBookingDetailsModalComponent } from '../../components/admin-booking-details-modal/admin-booking-details-modal.component';
 import { AdminPaginationComponent } from '../../components/admin-pagination/admin-pagination.component';
@@ -777,13 +777,14 @@ export class AdminBookingsComponent implements OnInit {
     }
   }
 
-  getVehicleLabel(booking: { vehicle_name?: string }): string {
-    const name = booking?.vehicle_name || '';
-    const category = categorizeVehicleName(name);
-    if (category === 'ev_scooty') return 'Electric Scooty';
-    if (category === 'petrol_scooty') return 'Petrol Scooty';
-    if (category === 'bike') return 'Bike';
-    return name || 'N/A';
+  getVehicleLabel(booking: {
+    vehicle_id?: string | null;
+    vehicle_name?: string | null;
+    vehicle_type?: string | null;
+    vehicle_subtype?: string | null;
+    vehicle_catalog_type?: string | null;
+  }): string {
+    return formatAdminVehicleLabel(booking);
   }
 
   getCustomerName(booking: any): string {

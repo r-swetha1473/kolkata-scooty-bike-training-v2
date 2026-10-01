@@ -102,8 +102,8 @@ interface Vehicle {
                   <button
                     type="button"
                     class="admin-action-btn"
-                    (click)="toggleActive(vehicle.id, vehicle.is_active)"
-                    [title]="vehicle.is_active ? 'Deactivate' : 'Activate'">
+                    (click)="askToggleActive(vehicle)"
+                    [title]="vehicle.is_active ? 'Retire vehicle (all slots)' : 'Restore vehicle'">
                     <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" *ngIf="vehicle.is_active">
                       <rect x="6" y="4" width="4" height="16"></rect>
                       <rect x="14" y="4" width="4" height="16"></rect>
@@ -174,12 +174,32 @@ interface Vehicle {
           </label>
           <label class="checkbox-row">
             <input type="checkbox" [(ngModel)]="formVehicle.is_active" name="is_active" (ngModelChange)="formDirty = true">
-            <span>Active (available for bookings)</span>
+            <span>Available for booking. Uncheck to retire this vehicle from all slots.</span>
           </label>
         </form>
         <div adminModalFooter>
           <button type="button" class="admin-btn admin-btn-secondary" (click)="vehicleModal.requestClose()">Cancel</button>
           <button type="submit" form="vehicle-form" class="admin-btn admin-btn-primary">Save</button>
+        </div>
+      </app-admin-modal>
+
+      <app-admin-modal
+        [open]="!!retireTarget"
+        [title]="retireTarget?.is_active ? 'Retire vehicle (all slots)' : 'Restore vehicle'"
+        [subtitle]="retireTarget?.name || ''"
+        (closed)="retireTarget = null">
+        <p *ngIf="retireTarget?.is_active">
+          This retires {{ retireTarget?.name }} everywhere. It will no longer be offered on slots.
+          Existing bookings are kept. Per-slot settings are a separate control on the Slots page.
+        </p>
+        <p *ngIf="retireTarget && !retireTarget.is_active">
+          Make {{ retireTarget.name }} available for booking again.
+        </p>
+        <div adminModalFooter>
+          <button type="button" class="admin-btn admin-btn-secondary" (click)="retireTarget = null">Cancel</button>
+          <button type="button" class="admin-btn admin-btn-primary" (click)="confirmToggleActive()">
+            {{ retireTarget?.is_active ? 'Retire vehicle' : 'Restore vehicle' }}
+          </button>
         </div>
       </app-admin-modal>
 
@@ -214,6 +234,7 @@ export class AdminVehiclesComponent implements OnInit {
   showModal = false;
   formDirty = false;
   showDeleteModal = false;
+  retireTarget: Vehicle | null = null;
   editingVehicle: Vehicle | null = null;
   vehicleToDelete: Vehicle | null = null;
 
@@ -376,10 +397,18 @@ export class AdminVehiclesComponent implements OnInit {
     }
   }
 
-  async toggleActive(id: string, currentStatus: boolean) {
+  askToggleActive(vehicle: Vehicle) {
+    this.retireTarget = vehicle;
+  }
+
+  async confirmToggleActive() {
+    if (!this.retireTarget) return;
+    const vehicle = this.retireTarget;
+    const nextActive = !vehicle.is_active;
     try {
-      await this.api.put(`/vehicles/${id}`, { is_active: !currentStatus });
-      this.toast.success(`Vehicle ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+      await this.api.put(`/vehicles/${vehicle.id}`, { is_active: nextActive });
+      this.toast.success(nextActive ? 'Vehicle restored' : 'Vehicle retired from all slots');
+      this.retireTarget = null;
       await this.loadVehicles();
     } catch (error: unknown) {
       this.toast.error(getApiErrorMessage(error, 'Failed to update vehicle status'));

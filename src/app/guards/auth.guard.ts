@@ -3,7 +3,43 @@ import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { map, take, filter, timeout, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
-import { clearAuthToken } from '../utils/auth-token.storage';
+import { clearAuthToken, getAuthToken } from '../utils/auth-token.storage';
+import type { UserProfile } from '../services/auth.service';
+import { clearPhoneRedirectLoop, customerNeedsPhone, redirectToCompleteProfile } from '../utils/phone-gate';
+
+export const phoneRequiredGuard: CanActivateFn = (_route, state) => {
+  const path = state.url.split('?')[0];
+  if (path === '/complete-profile') {
+    return true;
+  }
+
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  const decide = (user: UserProfile | null) => {
+    if (!customerNeedsPhone(user)) {
+      clearPhoneRedirectLoop();
+      return true;
+    }
+    return redirectToCompleteProfile(router, state.url);
+  };
+
+  const current = authService.getUserProfile();
+  if (current) {
+    return decide(current);
+  }
+  if (!getAuthToken()) {
+    return true;
+  }
+
+  return authService.userProfile$.pipe(
+    filter((user) => user !== null),
+    take(1),
+    timeout(5000),
+    map((user) => decide(user)),
+    catchError(() => of(true))
+  );
+};
 
 export const activeCustomerGuard: CanActivateFn = () => {
   const authService = inject(AuthService);

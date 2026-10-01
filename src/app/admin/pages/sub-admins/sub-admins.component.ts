@@ -11,7 +11,8 @@ import { AdminPaginationComponent } from '../../components/admin-pagination/admi
 
 const MODULES = [
   'dashboard', 'users', 'trainers', 'vehicles', 'bookings', 'slots', 'branches', 'payments',
-  'audit_logs', 'settings', 'gallery', 'testimonials', 'blogs', 'coupons'
+  'audit_logs', 'settings', 'gallery', 'testimonials', 'blogs', 'coupons',
+  'candidates', 'candidates_payments'
 ];
 
 type AccountRole = 'admin' | 'subadmin';
@@ -25,6 +26,22 @@ function defaultPermissions(): ModulePermission[] {
     can_edit: false,
     can_delete: false
   }));
+}
+
+function mergeModulePermissions(existing?: ModulePermission[]): ModulePermission[] {
+  const byModule = new Map((existing || []).map((row) => [row.module, row]));
+  return MODULES.map((module) => {
+    const saved = byModule.get(module);
+    return saved
+      ? {
+          module,
+          can_view: !!saved.can_view,
+          can_create: !!saved.can_create,
+          can_edit: !!saved.can_edit,
+          can_delete: !!saved.can_delete
+        }
+      : { module, can_view: false, can_create: false, can_edit: false, can_delete: false };
+  });
 }
 
 @Component({
@@ -255,7 +272,7 @@ function defaultPermissions(): ModulePermission[] {
 
       <div class="permission-section" *ngIf="form.role === 'subadmin'" aria-labelledby="permission-matrix-title">
         <h3 id="permission-matrix-title" class="matrix-title">Permission Matrix</h3>
-        <p class="matrix-hint admin-cell-muted">Scroll horizontally on small screens to view all permission columns.</p>
+        <p class="matrix-hint admin-cell-muted">Scroll horizontally on small screens to view all permission columns. Candidate payments: Create records a payment, Edit allows collecting more than the fee, Delete voids a payment.</p>
         <div class="permission-matrix-wrap" tabindex="0" role="region" aria-label="Module permissions">
           <table class="permission-matrix admin-data-table">
             <thead>
@@ -461,6 +478,8 @@ export class AdminSubAdminsComponent implements OnInit {
   }
 
   formatModule(module: string): string {
+    if (module === 'candidates') return 'Candidates';
+    if (module === 'candidates_payments') return 'Candidate payments';
     return module.replace(/_/g, ' ');
   }
 
@@ -556,7 +575,7 @@ export class AdminSubAdminsComponent implements OnInit {
       confirm_password: '',
       status: account.admin_is_active ? 'active' : 'inactive',
       permissions: account.permissions?.length
-        ? account.permissions.map((p) => ({ ...p }))
+        ? mergeModulePermissions(account.permissions)
         : defaultPermissions()
     };
     this.formDirty = false;

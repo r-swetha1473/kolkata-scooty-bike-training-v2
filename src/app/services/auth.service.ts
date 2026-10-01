@@ -10,6 +10,8 @@ import { map } from 'rxjs/operators';
 
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth-token.storage';
 
+import { customerNeedsPhone, safeInternalNext } from '../utils/phone-gate';
+
 
 
 export interface ModulePermission {
@@ -37,6 +39,10 @@ export interface UserProfile {
   full_name: string;
 
   phone: string | null;
+
+  phone_complete?: boolean;
+
+  candidates_enabled?: boolean;
 
   avatar_url: string | null;
 
@@ -75,6 +81,8 @@ export interface AuthResponse {
 })
 
 export class AuthService {
+
+  private pendingOAuthReturn = false;
 
   private userProfileSubject = new BehaviorSubject<UserProfile | null>(null);
 
@@ -119,7 +127,7 @@ export class AuthService {
 
       if (token || oauthSuccess) {
         window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
-        this.redirectAfterOAuthIfNeeded();
+        this.pendingOAuthReturn = true;
       }
 
     } catch {
@@ -130,15 +138,17 @@ export class AuthService {
 
   }
 
-  private redirectAfterOAuthIfNeeded(): void {
-    const returnUrl = sessionStorage.getItem(AuthService.OAUTH_RETURN_KEY);
-    if (!returnUrl) {
+  private routeAfterGoogleSignIn(user: UserProfile): void {
+    const stored = sessionStorage.getItem(AuthService.OAUTH_RETURN_KEY);
+    sessionStorage.removeItem(AuthService.OAUTH_RETURN_KEY);
+    const next = safeInternalNext(stored || '/booking');
+    if (customerNeedsPhone(user)) {
+      void this.router.navigate(['/complete-profile'], { queryParams: { next } });
       return;
     }
-    sessionStorage.removeItem(AuthService.OAUTH_RETURN_KEY);
-    const target = returnUrl.startsWith('/') ? returnUrl : '/booking';
-    if (window.location.pathname !== target.split('?')[0]) {
-      queueMicrotask(() => this.router.navigateByUrl(target));
+    const path = next.split('?')[0];
+    if (window.location.pathname !== path) {
+      void this.router.navigateByUrl(next);
     }
   }
 
@@ -148,13 +158,21 @@ export class AuthService {
 
     this.http.get<UserProfile>('/auth/me').subscribe({
 
-      next: (user) => this.userProfileSubject.next(user),
+      next: (user) => {
+        this.userProfileSubject.next(user);
+        if (this.pendingOAuthReturn) {
+          this.pendingOAuthReturn = false;
+          this.routeAfterGoogleSignIn(user);
+        }
+      },
 
       error: () => {
 
         clearAuthToken();
 
         this.userProfileSubject.next(null);
+
+        this.pendingOAuthReturn = false;
 
       }
 

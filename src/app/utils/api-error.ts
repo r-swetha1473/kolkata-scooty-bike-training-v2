@@ -23,6 +23,8 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
       return bodyMessage || 'Session expired. Please sign in again.';
     case 403:
       return bodyMessage || 'You do not have permission to access this feature.';
+    case 428:
+      return bodyMessage || 'Add your mobile number to book classes.';
     case 404:
       return bodyMessage || 'This feature is not deployed on the server yet. Try again after the backend finishes deploying.';
     case 500:

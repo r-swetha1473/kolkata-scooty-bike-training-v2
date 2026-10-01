@@ -14,7 +14,7 @@ import { ToastService } from '../../../services/toast.service';
 import { ConfirmDialogService } from '../../../services/confirm-dialog.service';
 import { PaymentService } from '../../../services/payment.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { categorizeVehicleName } from '../../../utils/vehicle.utils';
+import { formatAdminVehicleLabel } from '../../../utils/vehicle-label';
 import { firstValueFrom } from 'rxjs';
 import { AdminModalComponent } from '../admin-modal/admin-modal.component';
 
@@ -371,12 +371,7 @@ export class AdminBookingDetailsModalComponent implements OnChanges {
   }
 
   getVehicleLabel(): string {
-    const name = this.booking?.vehicle_name || '';
-    const cat = categorizeVehicleName(name);
-    if (cat === 'ev_scooty') return 'Electric Scooty';
-    if (cat === 'petrol_scooty') return 'Petrol Scooty';
-    if (cat === 'bike') return 'Bike';
-    return name || 'N/A';
+    return formatAdminVehicleLabel(this.booking);
   }
 
   statusBadgeClass(status?: string): string {
