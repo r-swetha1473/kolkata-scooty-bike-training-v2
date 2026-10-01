@@ -6,6 +6,13 @@ const db = require('../db');
 const { SLOT_CAPACITY } = require('../config/app.config');
 const auditService = require('./audit.service');
 const notificationService = require('./notification.service');
+const { isSlotVehicleOverridesEnabled } = require('./slotVehicleOverride.service');
+
+/** Default off. Set ASSIGN_MISSING_TRAINER_IDS=1 to round-robin trainers onto slots. Not required for booking. */
+function isAssignMissingTrainersEnabled() {
+  const raw = process.env.ASSIGN_MISSING_TRAINER_IDS;
+  return raw === '1' || String(raw || '').toLowerCase() === 'true';
+}
 
 const SETTING_KEY = 'auto_slot_capacity_from_vehicles';
 const KOLKATA_TODAY = `(NOW() AT TIME ZONE 'Asia/Kolkata')::date`;
@@ -107,7 +114,13 @@ async function resolveSlotCapacity(client = null, branchId = null) {
   return Math.max(1, SLOT_CAPACITY.DEFAULT);
 }
 
+function manualRowGuardSql() {
+  if (!isSlotVehicleOverridesEnabled()) return '';
+  return 'AND svc.is_manual_override = false AND COALESCE(svc.is_enabled, true) = true';
+}
+
 async function pruneInactiveSlotVehicleCapacities(slotIds = null, client = null) {
+  const guard = manualRowGuardSql();
   try {
     if (Array.isArray(slotIds) && slotIds.length > 0) {
       await query(
@@ -118,6 +131,7 @@ async function pruneInactiveSlotVehicleCapacities(slotIds = null, client = null)
         WHERE svc.slot_id = s.id
           AND svc.vehicle_id = v.id
           AND s.id = ANY($1::uuid[])
+          ${guard}
           AND (
             v.is_active = false
             OR s.branch_id IS NULL
@@ -142,6 +156,7 @@ async function pruneInactiveSlotVehicleCapacities(slotIds = null, client = null)
       USING vehicles v, slots s
       WHERE svc.vehicle_id = v.id
         AND svc.slot_id = s.id
+        ${guard}
         AND (
           v.is_active = false
           OR s.branch_id IS NULL
@@ -159,21 +174,24 @@ async function pruneInactiveSlotVehicleCapacities(slotIds = null, client = null)
 }
 
 async function syncSlotVehicleCapacities(slotIds, client = null) {
+  const overridesOn = isSlotVehicleOverridesEnabled();
   for (const slotId of slotIds) {
     try {
       await query(client, 'SELECT ensure_slot_vehicle_capacities($1)', [slotId]);
-      await query(
-        client,
-        `
-        UPDATE slot_vehicle_capacity svc
-        SET capacity = v.max_per_slot
-        FROM vehicles v
-        WHERE svc.vehicle_id = v.id
-          AND svc.slot_id = $1
-          AND v.is_active = true
-        `,
-        [slotId]
-      );
+      if (!overridesOn) {
+        await query(
+          client,
+          `
+          UPDATE slot_vehicle_capacity svc
+          SET capacity = v.max_per_slot
+          FROM vehicles v
+          WHERE svc.vehicle_id = v.id
+            AND svc.slot_id = $1
+            AND v.is_active = true
+          `,
+          [slotId]
+        );
+      }
     } catch (e) {
       const msg = String(e.message || '');
       if (!msg.includes('does not exist') && !msg.includes('ensure_slot_vehicle_capacities')) {
@@ -238,9 +256,103 @@ async function assignMissingTrainerIds(client = null) {
  * Updates capacity on all slots from today (Asia/Kolkata) onward.
  * Includes today's in-progress slots (uses slot day, not start_time > NOW()).
  */
+async function recalculateFromEnabledRows(adminId = null, client = null) {
+  await query(
+    client,
+    `
+    INSERT INTO slot_vehicle_capacity (slot_id, vehicle_id, capacity, is_enabled, is_manual_override)
+    SELECT s.id, v.id, v.max_per_slot, true, false
+    FROM slots s
+    JOIN vehicles v ON v.branch_id = s.branch_id AND v.is_active = true
+    WHERE ${SLOT_DAY} >= ${KOLKATA_TODAY}
+      AND NOT EXISTS (
+        SELECT 1 FROM slot_vehicle_capacity svc
+        WHERE svc.slot_id = s.id AND svc.vehicle_id = v.id
+      )
+    ON CONFLICT (slot_id, vehicle_id) DO NOTHING
+    `
+  );
+
+  await query(
+    client,
+    `
+    UPDATE slot_vehicle_capacity svc
+    SET capacity = v.max_per_slot,
+        updated_at = NOW()
+    FROM vehicles v, slots s
+    WHERE svc.vehicle_id = v.id
+      AND svc.slot_id = s.id
+      AND svc.is_manual_override = false
+      AND v.is_active = true
+      AND v.branch_id IS NOT DISTINCT FROM s.branch_id
+      AND ${SLOT_DAY} >= ${KOLKATA_TODAY}
+    `
+  );
+
+  await pruneInactiveSlotVehicleCapacities(null, client);
+
+  const result = await query(
+    client,
+    `
+    UPDATE slots s
+    SET capacity = GREATEST(
+          s.booked_count,
+          COALESCE(enabled.total, 0),
+          1
+        ),
+        capacity_exceeded = (s.booked_count > COALESCE(enabled.total, 0)),
+        updated_at = NOW(),
+        status = CASE
+          WHEN s.status IN ('cancelled', 'completed', 'disabled') THEN s.status
+          WHEN COALESCE(enabled.total, 0) <= 0 OR s.booked_count >= COALESCE(enabled.total, 0) THEN 'full'
+          ELSE 'available'
+        END
+    FROM (
+      SELECT svc.slot_id, COALESCE(SUM(svc.capacity) FILTER (WHERE svc.is_enabled = true), 0)::int AS total
+      FROM slot_vehicle_capacity svc
+      GROUP BY svc.slot_id
+    ) enabled
+    WHERE s.id = enabled.slot_id
+      AND ${SLOT_DAY} >= ${KOLKATA_TODAY}
+    RETURNING s.id
+    `
+  );
+
+  const updated = result.rows.length;
+  if (updated > 0) {
+    await auditService.logSlotCapacityUpdate(adminId, {
+      auto_enabled: true,
+      slots_updated: updated,
+      mode: 'enabled_slot_vehicle_rows'
+    });
+    await notificationService.createNotification({
+      type: 'slot_capacity',
+      title: 'Slot capacity updated',
+      body: `${updated} slot(s) from today onward recalculated from enabled per-slot vehicle rows.`,
+      entity_type: 'slot',
+      entity_id: null,
+      dedupeHours: 1
+    }).catch(() => {});
+  }
+
+  return {
+    updated,
+    capacity: null,
+    active_vehicles: null,
+    capacity_sum: null,
+    auto_enabled: true,
+    mode: 'enabled_slot_vehicle_rows'
+  };
+}
+
 async function recalculateFutureSlotCapacities(adminId = null, client = null) {
+  if (isAssignMissingTrainersEnabled()) {
+    await assignMissingTrainerIds(client);
+  }
+  if (isSlotVehicleOverridesEnabled()) {
+    return recalculateFromEnabledRows(adminId, client);
+  }
   const enabled = await isAutoCapacityEnabled(client);
-  await assignMissingTrainerIds(client);
 
   // Per-branch capacity: never use global vehicle sum (that inflated customer seats to 25+)
   const branches = await query(
@@ -333,11 +445,10 @@ function computeLiveCapacityFromRows(vehicleCapacities, fallbackCapacity = 0) {
   if (!Array.isArray(vehicleCapacities) || vehicleCapacities.length === 0) {
     return Math.max(0, Number(fallbackCapacity) || 0);
   }
-  const total = vehicleCapacities.reduce(
+  return vehicleCapacities.reduce(
     (sum, row) => sum + Math.max(0, Number(row?.capacity) || 0),
     0
   );
-  return total > 0 ? total : Math.max(0, Number(fallbackCapacity) || 0);
 }
 
 module.exports = {
@@ -350,5 +461,6 @@ module.exports = {
   syncSlotVehicleCapacities,
   pruneInactiveSlotVehicleCapacities,
   computeLiveCapacityFromRows,
-  assignMissingTrainerIds
+  assignMissingTrainerIds,
+  isAssignMissingTrainersEnabled
 };

@@ -77,24 +77,6 @@ async function getTrainerDeletePreview(trainerId) {
   };
 }
 
-async function findReassignConflicts(client, trainerId, reassignToTrainerId) {
-  const result = await client.query(
-    `SELECT b1.id, b1.slot_id
-     FROM bookings b1
-     WHERE b1.trainer_id = $1
-       AND b1.status IN ('pending', 'confirmed')
-       AND EXISTS (
-         SELECT 1 FROM bookings b2
-         WHERE b2.slot_id = b1.slot_id
-           AND b2.trainer_id = $2
-           AND b2.status NOT IN ('cancelled')
-           AND b2.id <> b1.id
-       )`,
-    [trainerId, reassignToTrainerId]
-  );
-  return result.rows;
-}
-
 async function completePastBookings(client, trainerId, adminId) {
   const before = await client.query(
     `SELECT b.id, b.status
@@ -162,17 +144,6 @@ async function completeAllBookings(client, trainerId, adminId) {
 }
 
 async function reassignBlockingBookings(client, trainerId, reassignToTrainerId, adminId) {
-  const conflicts = await findReassignConflicts(client, trainerId, reassignToTrainerId);
-  if (conflicts.length > 0) {
-    const error = new Error(
-      'Cannot reassign bookings: the selected trainer already has bookings on one or more of the same slots. Choose another trainer or mark bookings as completed.'
-    );
-    error.status = 409;
-    error.errorCode = 'REASSIGN_CONFLICT';
-    error.conflictCount = conflicts.length;
-    throw error;
-  }
-
   const before = await client.query(
     `SELECT id, slot_id, status FROM bookings
      WHERE trainer_id = $1 AND status IN ('pending', 'confirmed')`,

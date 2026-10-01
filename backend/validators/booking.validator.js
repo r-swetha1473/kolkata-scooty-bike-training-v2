@@ -18,10 +18,6 @@ const validateBookingCreation = [
     .isUUID()
     .withMessage('slot_id must be a valid UUID from the slots list'),
 
-  body('trainer_id')
-    .optional({ values: 'falsy' })
-    .isUUID()
-    .withMessage(`If trainer_id is sent it must be a valid UUID. ${ID_HINT}`),
   body('vehicle_id')
     .notEmpty()
     .withMessage(`vehicle_id is required. ${ID_HINT}`)

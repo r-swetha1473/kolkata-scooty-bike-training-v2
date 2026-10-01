@@ -2,6 +2,8 @@
  * Shared admin booking list search/filter SQL builder.
  */
 
+const { sqlAdminVehicleCategoryLabel } = require('./vehicleLabel');
+
 const SLOT_DAY = `COALESCE(s.slot_date, (s.start_time AT TIME ZONE 'Asia/Kolkata')::date)`;
 
 const BOOKING_FROM = `
@@ -52,6 +54,9 @@ function buildBookingListQuery({
       `COALESCE(b.booking_reference, '') ILIKE $${idx}`,
       `COALESCE(p.full_name, '') ILIKE $${idx}`,
       `COALESCE(v.name, '') ILIKE $${idx}`,
+      `COALESCE(v.vehicle_subtype, '') ILIKE $${idx}`,
+      `COALESCE(v.vehicle_type, '') ILIKE $${idx}`,
+      `COALESCE(${sqlAdminVehicleCategoryLabel('b', 'v')}, '') ILIKE $${idx}`,
       `COALESCE(b.notes, '') ILIKE $${idx}`,
       `b.id::text ILIKE $${idx}`
     ];
@@ -143,6 +148,8 @@ function buildBookingListQuery({
            t.id AS trainer_table_id,
            p.id AS trainer_profile_id, p.full_name AS trainer_name,
            v.name AS vehicle_name,
+           v.vehicle_subtype AS vehicle_subtype,
+           v.vehicle_type AS vehicle_catalog_type,
            br.name AS branch_name,
            pay.status AS payment_status,
            pay.amount AS payment_amount,

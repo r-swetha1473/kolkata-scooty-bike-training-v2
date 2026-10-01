@@ -45,7 +45,9 @@ const PUBLIC_TRAINER_SELECT = `
   JOIN profiles p ON t.user_id = p.id
 `;
 
+/** @deprecated Customers no longer pick a trainer. Returns every active trainer. */
 router.get('/available-for-slot/:slotId', async (req, res, next) => {
+  res.set('Deprecation', 'true');
   try {
     const slotId = String(req.params.slotId || '').trim();
     if (!UUID_RE.test(slotId)) {

@@ -233,6 +233,7 @@ app.use('/api/payments', strictLog, strictLimit, paymentsRoutes);
 
 // Protected routes
 app.use('/api/bookings', strictLog, strictLimit, bookingRoutes);
+app.use('/api/candidates', adminLog, adminLimit, require('./routes/candidates'));
 app.use('/api/admin', adminLog, adminLimit, adminRoutes);
 app.use('/api/admin-management', adminLog, adminLimit, adminManagementRoutes);
 app.use('/api/ratings', strictLog, strictLimit, ratingsRoutes);

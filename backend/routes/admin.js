@@ -33,6 +33,7 @@ const reactivationService = require('../services/reactivationRequest.service');
 const overdueBookingService = require('../services/overdueBooking.service');
 const { getDashboardStats } = require('../services/dashboardStats.service');
 const { buildBookingListQuery, rowsToCsv } = require('../utils/bookingSearch');
+const { formatAdminVehicleLabel } = require('../utils/vehicleLabel');
 const { enrichBookingTimes } = require('../utils/bookingTimeFormat');
 const offlineBookingService = require('../services/offlineBooking.service');
 const offlineCustomerSearchService = require('../services/offlineCustomerSearch.service');
@@ -164,6 +165,10 @@ function mapAdminBookingRow(row) {
       capacity_exceeded: row.capacity_exceeded
     },
     vehicle_name: row.vehicle_name,
+    vehicle_type: row.vehicle_type || null,
+    vehicle_subtype: row.vehicle_subtype || null,
+    vehicle_catalog_type: row.vehicle_catalog_type || null,
+    vehicle_label: formatAdminVehicleLabel(row),
     booking_source: row.booking_source || 'ONLINE',
     booking_reference: row.booking_reference || row.offline_reference_number || null,
     offline_reference_number: row.offline_reference_number,
@@ -260,7 +265,7 @@ router.get('/bookings/export', requirePermission('bookings', 'view'), async (req
         'Created By':
           row.booking_source === 'OFFLINE' ? row.created_by_admin_name || 'Admin' : 'Self',
         'Created Date': createdDate,
-        Vehicle: row.vehicle_name || '',
+        Vehicle: formatAdminVehicleLabel(row),
         Trainer: row.trainer_name || '',
         'Customer Name':
           row.booking_source === 'OFFLINE' ? row.offline_customer_name : row.user_name,
@@ -1280,18 +1285,6 @@ router.put('/bookings/:id/trainer', requirePermission('bookings', 'edit'), async
         const error = new Error('Trainer not found or inactive');
         error.status = 400;
         error.errorCode = 'TRAINER_INACTIVE';
-        return next(error);
-      }
-
-      const dup = await db.query(
-        `SELECT id FROM bookings
-         WHERE slot_id = $1 AND trainer_id = $2 AND id != $3 AND status NOT IN ('cancelled')`,
-        [bookingCheck.rows[0].slot_id, trainer_id, id]
-      );
-      if (dup.rows.length > 0) {
-        const error = new Error('This trainer is already assigned for this slot');
-        error.status = 409;
-        error.errorCode = 'TRAINER_SLOT_TAKEN';
         return next(error);
       }
     }

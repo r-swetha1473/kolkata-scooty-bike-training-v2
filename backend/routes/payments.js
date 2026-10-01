@@ -7,6 +7,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { loadUserPermissions, requirePermission } = require('../middleware/permissions');
 const paymentService = require('../services/payment.service');
 const { jsonError } = require('../utils/httpError');
+const { requireRealPhone } = require('../utils/phonePolicy');
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ function handleValidation(req, res) {
   return null;
 }
 
-router.get('/my', authenticate, async (req, res, next) => {
+router.get('/my', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const rows = await paymentService.listMyPayments(req.user.id);
     res.json(rows);
@@ -41,7 +42,7 @@ router.get('/my', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const payment = await paymentService.getPaymentById(req.params.id);
     if (!payment) return jsonError(res, 404, 'Payment not found', 'NOT_FOUND');
@@ -58,6 +59,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post(
   '/:id/receipt',
   authenticate,
+  requireRealPhone,
   param('id').isUUID(),
   upload.single('receipt'),
   body('reference_number').optional().isString().trim().isLength({ max: 100 }),
@@ -149,7 +151,7 @@ router.post(
   }
 );
 
-router.get('/:id/receipt-file', authenticate, async (req, res, next) => {
+router.get('/:id/receipt-file', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const payment = await paymentService.getPaymentById(req.params.id);
     if (!payment?.receipt_path) {

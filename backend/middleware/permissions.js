@@ -18,6 +18,8 @@ const PERMISSIONS = {
     testimonials: ['view', 'create', 'edit', 'delete'],
     blogs: ['view', 'create', 'edit', 'delete'],
     coupons: ['view', 'create', 'edit', 'delete'],
+    candidates: ['view', 'create', 'edit', 'delete'],
+    candidates_payments: ['view', 'create', 'edit', 'delete'],
     settings: ['view', 'edit'],
     audit_logs: ['view'],
     sub_admins: ['view', 'create', 'edit', 'delete']
@@ -35,6 +37,8 @@ const PERMISSIONS = {
     testimonials: ['view', 'create', 'edit', 'delete'],
     blogs: ['view', 'create', 'edit', 'delete'],
     coupons: ['view', 'create', 'edit', 'delete'],
+    candidates: ['view', 'create', 'edit'],
+    candidates_payments: ['view', 'create', 'edit', 'delete'],
     settings: [],
     audit_logs: [],
     sub_admins: []

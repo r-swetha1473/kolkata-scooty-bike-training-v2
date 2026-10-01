@@ -1,15 +1,24 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate } = require('../middleware/auth');
-const config = require('../app.config');
-const { normalizeIndianMobileDigits } = require('../utils/phoneNormalize');
+const {
+  parseProfilePhone,
+  isPhoneUniqueViolation,
+  phoneCompleteForUser,
+  requireRealPhone,
+  DUPLICATE_PHONE_MESSAGE
+} = require('../utils/phonePolicy');
 const reactivationService = require('../services/reactivationRequest.service');
 const { getProgressForUser } = require('../services/customerProgress.service');
 const router = express.Router();
 
 router.get('/me', authenticate, async (req, res, next) => {
   try {
-    res.json(req.user);
+    const { password_hash, ...safe } = req.user;
+    res.json({
+      ...safe,
+      phone_complete: phoneCompleteForUser(safe)
+    });
   } catch (error) {
     next(error);
   }
@@ -28,15 +37,15 @@ router.put('/me', authenticate, async (req, res, next) => {
       params.push(full_name);
     }
     if (rawPhone !== undefined) {
-      const normalizedPhone = normalizeIndianMobileDigits(rawPhone);
-      if (!config.booking.phoneNumberPattern.test(normalizedPhone)) {
-        const err = new Error(config.booking.phoneNumberErrorMessage);
-        err.status = 400;
-        err.errorCode = 'INVALID_PHONE';
+      const parsed = parseProfilePhone(rawPhone);
+      if (!parsed.ok) {
+        const err = new Error(parsed.message);
+        err.status = parsed.status;
+        err.errorCode = parsed.errorCode;
         return next(err);
       }
       updates.push(`phone = $${paramIndex++}`);
-      params.push(normalizedPhone);
+      params.push(parsed.phone);
     }
     if (email !== undefined) {
       updates.push(`email = $${paramIndex++}`);
@@ -65,10 +74,14 @@ router.put('/me', authenticate, async (req, res, next) => {
       return next(error);
     }
 
-    res.json(result.rows[0]);
+    const { password_hash, ...safe } = result.rows[0];
+    res.json({
+      ...safe,
+      phone_complete: phoneCompleteForUser(safe)
+    });
   } catch (err) {
-    if (err.code === '23505') {
-      const dup = new Error('This mobile number is already registered to another account.');
+    if (isPhoneUniqueViolation(err)) {
+      const dup = new Error(DUPLICATE_PHONE_MESSAGE);
       dup.status = 409;
       dup.errorCode = 'DUPLICATE_PHONE';
       return next(dup);
@@ -77,7 +90,7 @@ router.put('/me', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/me/progress', authenticate, async (req, res, next) => {
+router.get('/me/progress', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const progress = await getProgressForUser(req.user.id);
     res.json(progress);

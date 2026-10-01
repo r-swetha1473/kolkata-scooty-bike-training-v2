@@ -6,6 +6,7 @@
  */
 const fs = require('fs');
 const db = require('../db');
+const { sqlEffectiveVehicleCapacity } = require('./slotVehicleOverride.service');
 const config = require('../app.config');
 const vehicleService = require('./vehicle.service');
 const auditService = require('./audit.service');
@@ -260,11 +261,7 @@ async function createOfflineBooking(adminId, payload) {
         SELECT
           v.max_per_slot,
           v.name,
-          COALESCE(
-            (SELECT svc.capacity FROM slot_vehicle_capacity svc
-             WHERE svc.slot_id = $1 AND svc.vehicle_id = v.id),
-            v.max_per_slot
-          ) AS vehicle_capacity
+          ${sqlEffectiveVehicleCapacity('$1', 'v.id', 'v.max_per_slot')} AS vehicle_capacity
         FROM vehicles v
         WHERE v.id = $2 AND v.is_active = true
       ),

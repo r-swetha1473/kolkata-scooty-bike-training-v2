@@ -177,7 +177,7 @@ async function getAvailability(params) {
       exceptions,
       window.start_time,
       window.end_time,
-      { vehicleId }
+      { vehicleId, slotId: persistedRow?.id || null }
     );
 
     const bookingEntry = bookingMap.get(window.start_time) || { vehicles: {}, total: 0 };

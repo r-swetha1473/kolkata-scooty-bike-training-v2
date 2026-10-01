@@ -1,6 +1,7 @@
 const db = require('../db');
 const slotCapacityService = require('../services/slotCapacity.service');
 const exceptionsService = require('./exceptions.service');
+const { isSlotVehicleOverridesEnabled } = require('../services/slotVehicleOverride.service');
 
 async function getBranchVehicles(client, branchId, { vehicleId = null, vehicleType = null } = {}) {
   const q = client ? client.query.bind(client) : db.query.bind(db);
@@ -43,19 +44,48 @@ async function computeCapacities(client, branchId, exceptions, startTimeIso, end
     vehicle_id: v.id,
     vehicle_name: v.name,
     capacity: v.max_per_slot,
+    configured_capacity: v.max_per_slot,
+    is_enabled: true,
+    is_manual_override: false,
     vehicle_type: v.vehicle_type
   }));
 
+  let usedSlotRows = false;
+  if (isSlotVehicleOverridesEnabled() && options.slotId) {
+    const q = client ? client.query.bind(client) : db.query.bind(db);
+    try {
+      const rows = await q(
+        `SELECT vehicle_id, capacity, is_enabled, is_manual_override
+         FROM slot_vehicle_capacity WHERE slot_id = $1`,
+        [options.slotId]
+      );
+      const byId = new Map(rows.rows.map((row) => [String(row.vehicle_id), row]));
+      usedSlotRows = rows.rows.length > 0;
+      for (const v of vehicleCapacities) {
+        const row = byId.get(String(v.vehicle_id));
+        if (!row) continue;
+        v.configured_capacity = parseInt(row.capacity, 10);
+        v.is_enabled = row.is_enabled !== false;
+        v.is_manual_override = row.is_manual_override === true;
+        v.capacity = v.is_enabled ? v.configured_capacity : 0;
+      }
+    } catch (e) {
+      if (e.code !== '42703' && e.code !== '42P01') throw e;
+    }
+  }
+
   let totalCapacity = vehicleCapacities.reduce((sum, v) => sum + (v.capacity || 0), 0);
-  if (totalCapacity <= 0) {
+  if (totalCapacity <= 0 && !usedSlotRows) {
     totalCapacity = await resolveBranchDefaultCapacity(client, branchId);
   }
 
+  let capacitySource = usedSlotRows ? 'slot_vehicle_capacity' : 'vehicles';
   if (override != null) {
     totalCapacity = override;
+    capacitySource = 'override';
   }
 
-  return { totalCapacity, vehicleCapacities, capacitySource: override != null ? 'override' : 'vehicles' };
+  return { totalCapacity, vehicleCapacities, capacitySource };
 }
 
 async function getBookingCountsBySlot(client, branchId, dateString) {

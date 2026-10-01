@@ -91,7 +91,6 @@ function kolkataDateOffset(days) {
         vehicleId,
         null,
         null,
-        null,
         { mode: 'create' }
       );
 

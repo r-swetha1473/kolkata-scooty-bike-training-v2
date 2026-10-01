@@ -15,7 +15,9 @@ const notificationService = require('../services/notification.service');
 const { invalidateCacheForBranch } = require('../scheduling/availability.service');
 const { EVENT_TYPES, logBookingEvent } = require('../services/bookingEvent.service');
 const { normalizeBookingCreateBody } = require('../middleware/bookingPayload');
+const { sqlEffectiveVehicleCapacity } = require('../services/slotVehicleOverride.service');
 const { normalizeIndianMobileDigits } = require('../utils/phoneNormalize');
+const { requireRealPhone } = require('../utils/phonePolicy');
 const {
   getProfileInactiveStatus,
   isCustomerInactiveBlocked
@@ -58,6 +60,7 @@ function logPostBookingRequest(req, res, next) {
 router.post(
   '/',
   authenticate,
+  requireRealPhone,
   normalizeBookingCreateBody,
   logPostBookingRequest,
   validateBookingCreation,
@@ -90,7 +93,6 @@ router.post(
       slot_id,
       phone,
       notes,
-      trainer_id: clientTrainerId,
       vehicle_id: clientVehicleId,
       branch_id: clientBranchId,
       course_id: clientCourseId,
@@ -320,7 +322,6 @@ router.post(
 
     const uuidPattern =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    let trainer_id;
     let vehicle_id;
 
     const chosenVehicleId =
@@ -379,15 +380,11 @@ router.post(
       throw err;
     }
 
-    // Customer bookings: trainer is assigned by admin later; capacity is vehicle/slot based only.
-    trainer_id = null;
-
     if (process.env.LOG_BOOKING_DEBUG === '1') {
       console.log('[Bookings][POST] pre-insert:', {
         user_id: req.user.id,
         slot_id,
         vehicle_id,
-        trainer_id,
         slot_date: null,
         booking_phone: bookingPhone ? `***${String(bookingPhone).slice(-4)}` : null
       });
@@ -415,7 +412,6 @@ router.post(
       vehicle_id,
       slot_id,
       req.user.id,
-      trainer_id,
       { client, mode: 'create' }
     );
 
@@ -461,11 +457,7 @@ router.post(
         SELECT 
           v.max_per_slot,
           v.name,
-          COALESCE(
-            (SELECT svc.capacity FROM slot_vehicle_capacity svc
-             WHERE svc.slot_id = $1 AND svc.vehicle_id = v.id),
-            v.max_per_slot
-          ) AS vehicle_capacity
+          ${sqlEffectiveVehicleCapacity('$1', 'v.id', 'v.max_per_slot')} AS vehicle_capacity
         FROM vehicles v
         WHERE v.id = $3 AND v.is_active = true
       ),
@@ -565,9 +557,6 @@ router.post(
         'SLOT_PAST': 'This slot has already started or passed',
         'BOOKING_NOT_OPEN_YET': bookingRulesSvc.bookingWindowMessage(bookingWindowHours),
         'BOOKING_ADVANCE_REQUIRED': bookingRulesSvc.bookingAdvanceMessage(minAdvanceHours),
-        'TRAINER_NOT_FOUND': 'Selected trainer was not found',
-        'TRAINER_INACTIVE': 'This trainer is not available for booking',
-        'TRAINER_SLOT_TAKEN': 'This trainer is already booked for this time slot. Choose another trainer.',
         'VEHICLE_CAPACITY_FULL': `All ${vehicle.name} slots are full for this time slot`,
         'INVALID_VEHICLE': 'Invalid or inactive vehicle selected'
       };
@@ -742,7 +731,6 @@ router.post(
         user_id: req.user?.id,
         slot_id: req.body?.slot_id,
         vehicle_id: req.body?.vehicle_id,
-        trainer_id: null,
         phone: req.body?.phone ? `***${String(req.body.phone).slice(-4)}` : undefined
       });
     } else if (process.env.NODE_ENV === 'development' || process.env.LOG_BOOKING_DEBUG === '1') {
@@ -771,15 +759,11 @@ router.post(
         dup.errorCode = 'DUPLICATE_BOOKING';
         return next(dup);
       }
-      if (
-        c.includes('slot_trainer') ||
-        (d.includes('slot_id') && d.includes('trainer_id'))
-      ) {
-        const dup = new Error('This trainer is already booked for this time slot. Choose another trainer.');
-        dup.status = 409;
-        dup.errorCode = 'TRAINER_SLOT_TAKEN';
-        return next(dup);
-      }
+      const dup = new Error('This booking conflicts with an existing record.');
+      dup.status = 409;
+      dup.errorCode = 'UNIQUE_CONFLICT';
+      dup.constraint = c || undefined;
+      return next(dup);
     }
 
     // Pool / connect timeouts are infrastructure — not booking validation failures.
@@ -806,7 +790,7 @@ router.post(
   }
 });
 
-router.get('/slot/:slotId/status', authenticate, async (req, res, next) => {
+router.get('/slot/:slotId/status', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const { slotId } = req.params;
 
@@ -874,7 +858,7 @@ router.get('/slot/:slotId/status', authenticate, async (req, res, next) => {
   }
 });
 
-router.put('/:id/update', authenticate, async (req, res, next) => {
+router.put('/:id/update', authenticate, requireRealPhone, async (req, res, next) => {
   const client = await db.getClient();
 
   try {
@@ -931,7 +915,6 @@ router.put('/:id/update', authenticate, async (req, res, next) => {
       vehicle_id,
       slotId,
       req.user.id,
-      null,
       { excludeBookingId: booking.id, mode: 'update' }
     );
 
@@ -982,7 +965,7 @@ router.put('/:id/update', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/my-bookings', authenticate, async (req, res, next) => {
+router.get('/my-bookings', authenticate, requireRealPhone, async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT b.*,
@@ -1015,7 +998,7 @@ router.get('/my-bookings', authenticate, async (req, res, next) => {
   }
 });
 
-router.put('/:id/cancel', authenticate, async (req, res, next) => {
+router.put('/:id/cancel', authenticate, requireRealPhone, async (req, res, next) => {
   const client = await db.getClient();
 
   try {

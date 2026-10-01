@@ -27,7 +27,6 @@ const {
  * @param {string} vehicleId - Vehicle UUID (required - no hardcoded types)
  * @param {string} slotId - Slot UUID (required for full validation)
  * @param {string} userId - User UUID (optional, for user_id based checks)
- * @param {string} trainerId - Trainer UUID (required when slotId is set; must be active and free for this slot)
  * @param {{ excludeBookingId?: string, mode?: 'create'|'update', client?: object }} [options]
  * @returns {Promise<{eligible: boolean, reason?: string, details?: object}>}
  */
@@ -38,7 +37,6 @@ async function validateBookingEligibility(
   vehicleId,
   slotId = null,
   userId = null,
-  trainerId = null,
   options = {}
 ) {
   const { excludeBookingId = null, mode = 'create', client = null } = options;

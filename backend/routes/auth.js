@@ -9,6 +9,8 @@ const { validateLogin } = require('../validators');
 const auditService = require('../services/audit.service');
 const permissionsService = require('../services/permissions.service');
 const { setAuthCookie, clearAuthCookie, getClientIp } = require('../utils/authCookie');
+const { phoneCompleteForUser } = require('../utils/phonePolicy');
+const { isCandidatesEnabled } = require('../services/candidateAccess');
 const { resolveGoogleCallbackUrl, maskClientId, logOAuthDebug } = require('../utils/googleOAuth');
 const router = express.Router();
 
@@ -28,7 +30,9 @@ async function buildAuthUserResponse(user) {
   const { password_hash, ...userWithoutPassword } = user;
   const payload = {
     ...userWithoutPassword,
-    must_change_password: user.must_change_password === true
+    must_change_password: user.must_change_password === true,
+    phone_complete: phoneCompleteForUser(userWithoutPassword),
+    candidates_enabled: isCandidatesEnabled()
   };
 
   if (user.role === 'subadmin') {

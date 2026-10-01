@@ -5,6 +5,10 @@
  */
 
 const db = require('../db');
+const {
+  isSlotVehicleOverridesEnabled,
+  effectiveBookableCapacity
+} = require('./slotVehicleOverride.service');
 
 function queryWith(client) {
   return client
@@ -103,15 +107,23 @@ async function getEffectiveCapacityForSlot(slotId, vehicleId, client = null) {
 
   try {
     const svc = await q(
-      `SELECT capacity FROM slot_vehicle_capacity 
+      `SELECT capacity, is_enabled FROM slot_vehicle_capacity
        WHERE slot_id = $1 AND vehicle_id = $2`,
       [slotId, vehicleId]
     );
     if (svc.rows.length > 0) {
-      return parseInt(svc.rows[0].capacity, 10) || vehicle.max_per_slot;
+      return effectiveBookableCapacity(svc.rows[0], vehicle.max_per_slot, isSlotVehicleOverridesEnabled());
     }
   } catch (e) {
-    if (e.code !== '42P01') {
+    if (e.code === '42703') {
+      const svc = await q(
+        `SELECT capacity FROM slot_vehicle_capacity WHERE slot_id = $1 AND vehicle_id = $2`,
+        [slotId, vehicleId]
+      );
+      if (svc.rows.length > 0) {
+        return parseInt(svc.rows[0].capacity, 10) || vehicle.max_per_slot;
+      }
+    } else if (e.code !== '42P01') {
       throw e;
     }
   }

@@ -6,6 +6,7 @@ const db = require('../db');
 const { getBookingTimeline } = require('./bookingEvent.service');
 const { getCustomerHistory } = require('./customerHistory.service');
 const { enrichBookingTimes } = require('../utils/bookingTimeFormat');
+const { formatAdminVehicleLabel } = require('../utils/vehicleLabel');
 
 const BOOKING_DETAIL_SQL = `
   SELECT b.*,
@@ -18,6 +19,8 @@ const BOOKING_DETAIL_SQL = `
          attendance_updater.role AS attendance_updated_by_role,
          t.id AS trainer_table_id, tp.full_name AS trainer_name,
          v.name AS vehicle_name,
+         v.vehicle_subtype AS vehicle_subtype,
+         v.vehicle_type AS vehicle_catalog_type,
          br.name AS branch_name,
          c.name AS course_name,
          pay.id AS payment_id,
@@ -141,6 +144,10 @@ async function getBookingDetail(bookingId) {
     end_time: row.end_time,
     slot_date: row.slot_date,
     vehicle_name: row.vehicle_name,
+    vehicle_type: row.vehicle_type || null,
+    vehicle_subtype: row.vehicle_subtype || null,
+    vehicle_catalog_type: row.vehicle_catalog_type || null,
+    vehicle_label: formatAdminVehicleLabel(row),
     trainer_name: row.trainer_name,
     user_name: row.user_name,
     user_email: row.user_email,

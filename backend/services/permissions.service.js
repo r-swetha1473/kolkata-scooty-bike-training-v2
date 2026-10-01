@@ -18,7 +18,9 @@ const MODULES = [
   'gallery',
   'testimonials',
   'blogs',
-  'coupons'
+  'coupons',
+  'candidates',
+  'candidates_payments'
 ];
 
 const ACTION_TO_COLUMN = {

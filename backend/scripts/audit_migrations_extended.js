@@ -15,7 +15,8 @@ const CHECKS = [
   },
   { migration: '20260610140000_slot_capacity_sum_limit.sql', name: 'slots capacity CHECK 1-100', sql: `SELECT 1 AS ok FROM pg_constraint WHERE conrelid='slots'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%capacity%' AND pg_get_constraintdef(oid) LIKE '%100%'` },
   { migration: '20260124000000_create_slot_vehicle_capacity.sql', name: 'slot_vehicle_capacity table', sql: `SELECT to_regclass('public.slot_vehicle_capacity') AS ok` },
-  { migration: '20260321120000_bookings_unique_slot_trainer.sql', name: 'bookings unique slot+trainer index', sql: `SELECT 1 AS ok FROM pg_indexes WHERE tablename='bookings' AND indexname LIKE '%slot%trainer%'` }
+  { migration: '20261001140000_slot_vehicle_capacity_overrides.sql', name: 'slot_vehicle_capacity.is_enabled', sql: `SELECT 1 AS ok FROM information_schema.columns WHERE table_schema='public' AND table_name='slot_vehicle_capacity' AND column_name='is_enabled'` },
+  { migration: '20261001150000_drop_trainer_slot_unique_and_legacy_capacity.sql', name: 'slot+trainer unique index removed', sql: `SELECT 1 AS ok WHERE NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_bookings_slot_trainer_active')` }
 ];
 
 async function main() {

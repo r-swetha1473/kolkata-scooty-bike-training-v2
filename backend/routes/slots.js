@@ -14,6 +14,12 @@ const { sqlBookableSlotConditions } = require('../utils/slotBookableSql');
 const slotGenerationService = require('../services/slotGeneration.service');
 
 const { computeLiveCapacityFromRows } = require('../services/slotCapacity.service');
+const {
+  setSlotVehicleSetting,
+  sqlVehicleCapacityJsonFields,
+  listManualOverrideSlots,
+  resetSlotVehicleOverrides
+} = require('../services/slotVehicleOverride.service');
 
 function enrichSlotsWithLiveCapacity(rows) {
   if (!Array.isArray(rows)) return rows;
@@ -104,7 +110,7 @@ router.get('/', async (req, res, next) => {
                  DISTINCT jsonb_build_object(
                    'vehicle_id', v.id,
                    'vehicle_name', v.name,
-                   'capacity', svc.capacity,
+                   ${sqlVehicleCapacityJsonFields('svc')},
                    'booked', COALESCE(vehicle_booked.booked_count, 0)
                  )
                ) FILTER (WHERE v.id IS NOT NULL),
@@ -255,7 +261,7 @@ router.get('/date/:date', async (req, res, next) => {
                  DISTINCT jsonb_build_object(
                    'vehicle_id', v.id,
                    'vehicle_name', v.name,
-                   'capacity', svc.capacity,
+                   ${sqlVehicleCapacityJsonFields('svc')},
                    'booked', COALESCE(vehicle_booked.booked_count, 0)
                  )
                ) FILTER (WHERE v.id IS NOT NULL AND (s.branch_id IS NULL OR v.branch_id = s.branch_id)),
@@ -393,7 +399,7 @@ router.get('/available', async (req, res, next) => {
                  DISTINCT jsonb_build_object(
                    'vehicle_id', v.id,
                    'vehicle_name', v.name,
-                   'capacity', svc.capacity,
+                   ${sqlVehicleCapacityJsonFields('svc')},
                    'booked', COALESCE(vehicle_booked.booked_count, 0)
                  )
                ) FILTER (WHERE v.id IS NOT NULL),
@@ -427,128 +433,96 @@ router.get('/available', async (req, res, next) => {
   }
 });
 
+function parseVehicleCapacityEntry(value) {
+  if (value != null && typeof value === 'object') {
+    return { capacity: value.capacity, isEnabled: value.is_enabled };
+  }
+  return { capacity: value, isEnabled: undefined };
+}
+
+// Per-slot vehicle enablement and capacity. Does not change other slots or existing bookings.
+router.put('/:id/vehicles/:vehicleId', ...adminAccess('slots', 'edit'), async (req, res, next) => {
+  try {
+    const result = await setSlotVehicleSetting({
+      slotId: req.params.id,
+      vehicleId: req.params.vehicleId,
+      capacity: req.body?.capacity,
+      isEnabled: req.body?.is_enabled
+    });
+    res.json({
+      success: true,
+      message: 'Vehicle updated for this slot',
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PHASE 4: Update vehicle capacity for a slot (admin only)
 router.put('/:id/vehicle-capacity', ...adminAccess('slots', 'edit'), async (req, res, next) => {
-  const client = await db.getClient();
-  
   try {
-    await client.query('BEGIN');
-
     const { id } = req.params;
-    const { vehicle_capacities } = req.body; // { vehicle_id: capacity }
-
-    // Get slot
-    const slotCheck = await client.query(
-      `SELECT id FROM slots WHERE id = $1`,
-      [id]
-    );
-
-    if (slotCheck.rows.length === 0) {
-      await client.query('ROLLBACK');
-      client.release();
-      const error = new Error('Slot not found');
-      error.status = 404;
-      error.errorCode = 'SLOT_NOT_FOUND';
-      return next(error);
-    }
+    const { vehicle_capacities } = req.body;
 
     if (!vehicle_capacities || typeof vehicle_capacities !== 'object') {
-      await client.query('ROLLBACK');
-      client.release();
       const error = new Error('vehicle_capacities object is required');
       error.status = 400;
       error.errorCode = 'INVALID_REQUEST';
       return next(error);
     }
 
-    // Get current capacities and booked counts for validation
-    const currentCapacities = await client.query(
-      `SELECT svc.vehicle_id, svc.capacity, v.name as vehicle_name,
-              COALESCE((
-                SELECT COUNT(*) FROM bookings b 
-                WHERE b.slot_id = svc.slot_id AND b.vehicle_id = svc.vehicle_id 
-                AND b.status NOT IN ('cancelled')
-              ), 0) as booked_count
-       FROM slot_vehicle_capacity svc
-       JOIN vehicles v ON svc.vehicle_id = v.id
-       WHERE svc.slot_id = $1`,
-      [id]
-    );
-
-    const beforeValues = {};
-    const afterValues = {};
-    
-    // Validate and update each vehicle capacity
-    for (const [vehicleId, newCapacity] of Object.entries(vehicle_capacities)) {
-      const current = currentCapacities.rows.find(r => String(r.vehicle_id) === String(vehicleId));
-      if (!current) {
-        await client.query('ROLLBACK');
-        client.release();
-        const error = new Error(`Vehicle ${vehicleId} not found for this slot`);
-        error.status = 400;
-        error.errorCode = 'VEHICLE_NOT_FOUND';
-        return next(error);
-      }
-
-      const newCap = parseInt(newCapacity);
-      const booked = parseInt(current.booked_count || 0);
-
-      if (newCap < booked) {
-        await client.query('ROLLBACK');
-        client.release();
-        const error = new Error(`Cannot reduce ${current.vehicle_name} capacity below ${booked} (current bookings)`);
-        error.status = 400;
-        error.errorCode = 'INVALID_CAPACITY';
-        return next(error);
-      }
-
-      beforeValues[vehicleId] = current.capacity;
-      afterValues[vehicleId] = newCap;
-
-      // Update capacity in slot_vehicle_capacity table
-      await client.query(
-        `UPDATE slot_vehicle_capacity 
-         SET capacity = $1, updated_at = NOW()
-         WHERE slot_id = $2 AND vehicle_id = $3`,
-        [newCap, id, vehicleId]
-      );
+    const updates = [];
+    let affectedBookings = 0;
+    let slot = null;
+    for (const [vehicleId, raw] of Object.entries(vehicle_capacities)) {
+      const parsed = parseVehicleCapacityEntry(raw);
+      const result = await setSlotVehicleSetting({
+        slotId: id,
+        vehicleId,
+        capacity: parsed.capacity,
+        isEnabled: parsed.isEnabled
+      });
+      updates.push(result);
+      if (result.is_enabled === false) affectedBookings += result.affected_bookings;
+      slot = result.slot || slot;
     }
-
-    // Update total slot capacity
-    const totalCapacity = Object.values(afterValues).reduce((sum, cap) => sum + cap, 0);
-    await client.query(
-      `UPDATE slots SET capacity = $1, updated_at = NOW() WHERE id = $2`,
-      [totalCapacity, id]
-    );
-
-    // Log audit trail
-    await client.query(
-      `INSERT INTO admin_audit_log (admin_id, action_type, entity_type, entity_id, before_value, after_value, details)
-       VALUES ($1, 'UPDATE_VEHICLE_CAPACITY', 'slot', $2, $3::jsonb, $4::jsonb, $5::jsonb)`,
-      [
-        req.user.id,
-        id,
-        JSON.stringify(beforeValues),
-        JSON.stringify(afterValues),
-        JSON.stringify({ reason: 'Admin capacity update' })
-      ]
-    ).catch(err => {
-      console.error('[Audit] Failed to log vehicle capacity update:', err);
-    });
-
-    const updateResult = await client.query(`SELECT * FROM slots WHERE id = $1`, [id]);
-
-    await client.query('COMMIT');
-    client.release();
 
     res.json({
       success: true,
-      slot: updateResult.rows[0],
+      slot,
+      vehicles: updates,
+      affected_bookings: affectedBookings,
       message: 'Vehicle capacity updated successfully'
     });
   } catch (error) {
-    await client.query('ROLLBACK');
-    client.release();
+    next(error);
+  }
+});
+
+router.get('/vehicle-overrides', ...adminAccess('slots', 'view'), async (req, res, next) => {
+  try {
+    const branchId = req.query.branch_id || req.query.branchId || null;
+    const slots = await listManualOverrideSlots(branchId);
+    res.json({ slots });
+  } catch (error) {
+    const message = String(error.message || '');
+    if (message.includes('is_manual_override') && message.includes('does not exist')) {
+      return res.json({ slots: [], schema_ready: false });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/reset-vehicle-overrides', ...adminAccess('slots', 'edit'), async (req, res, next) => {
+  try {
+    const result = await resetSlotVehicleOverrides(req.params.id);
+    res.json({
+      success: true,
+      message: 'Slot vehicle settings reset to the vehicle defaults',
+      ...result
+    });
+  } catch (error) {
     next(error);
   }
 });
@@ -571,7 +545,7 @@ router.get('/:id', async (req, res, next) => {
                DISTINCT jsonb_build_object(
                  'vehicle_id', v.id,
                  'vehicle_name', v.name,
-                 'capacity', svc.capacity,
+                 ${sqlVehicleCapacityJsonFields('svc')},
                  'booked', COALESCE(vehicle_booked.booked_count, 0)
                )
              ) FILTER (WHERE v.id IS NOT NULL) as vehicle_capacities
